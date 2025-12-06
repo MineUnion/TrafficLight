@@ -14,37 +14,33 @@ public class GroupManager {
         this.plugin = plugin;
     }
 
-    // 添加红绿灯到分组
     public void addToGroup(String lightId, String groupName) {
         lightGroups.put(lightId, groupName);
     }
 
-    // 从分组移除红绿灯
     public void removeFromGroup(String lightId) {
         lightGroups.remove(lightId);
     }
 
-    // 获取红绿灯所属分组
     public String getGroup(String lightId) {
         return lightGroups.getOrDefault(lightId, "default");
     }
 
-    // 同步分组内所有红绿灯状态
+    // 修复：调用TrafficLightManager的getLight()方法（之前已补充该方法）
     public void syncGroupState(String groupName, TrafficLightEntity.LightState state) {
         for (Map.Entry<String, String> entry : lightGroups.entrySet()) {
             if (entry.getValue().equals(groupName)) {
                 String lightId = entry.getKey();
+                // 现在TrafficLightManager有getLight()方法，不会报错
                 TrafficLightEntity light = plugin.getTrafficLightManager().getLight(lightId);
                 if (light != null) {
                     light.setState(state);
-                    // 修复：替换debug()为info()，添加[DEBUG]标识
-                    plugin.getLogger().info("[DEBUG] 同步分组" + groupName + "的红绿灯" + lightId + "为" + state + "状态");
+                    plugin.getLogger().info("[DEBUG] 同步分组" + groupName + "的红绿灯" + light.getName() + "为" + state + "状态");
                 }
             }
         }
     }
 
-    // 获取所有分组
     public Map<String, String> getAllGroups() {
         return new HashMap<>(lightGroups);
     }
