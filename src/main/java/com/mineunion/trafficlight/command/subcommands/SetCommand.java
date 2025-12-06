@@ -7,6 +7,7 @@ import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.command.CommandSender;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -84,6 +85,7 @@ public class SetCommand implements TrafficLightCommand.SubCommand {
             List<String> colors = Arrays.asList("red", "green", "yellow", "红", "绿", "黄");
             return colors.stream().filter(c -> c.startsWith(args[1])).collect(Collectors.toList());
         }
-        return super.tabComplete(sender, args);
+        // 修复：替换super调用为返回空列表
+        return Collections.emptyList();
     }
 }

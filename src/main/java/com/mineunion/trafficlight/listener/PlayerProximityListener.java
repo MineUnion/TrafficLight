@@ -44,10 +44,10 @@ public class PlayerProximityListener implements Listener {
             // 进入范围激活，离开范围休眠
             if (distance <= radius && !tle.isActivated()) {
                 tle.setActivated(true);
-                plugin.getLogger().debug("玩家" + player.getName() + "激活红绿灯" + tle.getName());
+                plugin.getLogger().info("[DEBUG] 玩家" + player.getName() + "激活红绿灯" + tle.getName());
             } else if (distance > radius && tle.isActivated()) {
                 tle.setActivated(false);
-                plugin.getLogger().debug("玩家" + player.getName() + "休眠红绿灯" + tle.getName());
+                plugin.getLogger().info("[DEBUG] 玩家" + player.getName() + "休眠红绿灯" + tle.getName());
             }
         }
     }

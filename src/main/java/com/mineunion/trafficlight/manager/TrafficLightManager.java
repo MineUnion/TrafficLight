@@ -108,7 +108,7 @@ public class TrafficLightManager {
     }
 
     // 加载所有红绿灯数据
-    private void loadAllTrafficLights() {
+    public void loadAllTrafficLights() {
         String storageType = configManager.getStorageType();
         if ("file".equals(storageType)) {
             // 文件加载
