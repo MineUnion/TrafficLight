@@ -199,7 +199,6 @@ jobs:
             
             #### 构建说明
             - 基于 `${{ github.ref_name }}` 分支构建
-            - 适配 Paper 1.20+ (Java 17)
             - 产物：${{ needs.build.outputs.jar_name }}
           # 上传产物（绝对路径容错）
           files: ${{ github.workspace }}/build-output/${{ needs.build.outputs.jar_name }}
