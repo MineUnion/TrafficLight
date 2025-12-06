@@ -2,32 +2,25 @@ package com.mineunion.trafficlight.task;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
-import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class LightUpdateTask extends BukkitRunnable {
     private final TrafficLight plugin;
-    private final TrafficLightManager lightManager;
+    private final TrafficLightEntity light;
 
-    public LightUpdateTask(TrafficLight plugin) {
+    public LightUpdateTask(TrafficLight plugin, TrafficLightEntity light) {
         this.plugin = plugin;
-        this.lightManager = plugin.getTrafficLightManager();
+        this.light = light;
     }
 
     @Override
     public void run() {
-        // 遍历所有红绿灯，更新状态
-        for (TrafficLightEntity tle : lightManager.getAllTrafficLights()) {
-            // 未激活则跳过
-            if (!tle.isActivated()) {
-                continue;
-            }
-            // 检查是否需要切换状态
-            if (tle.updateDuration()) {
-                tle.switchState();
-                // TODO: 这里可以添加灯光特效/粒子效果等可视化逻辑
-                plugin.getLogger().debug("红绿灯" + tle.getName() + "切换为" + tle.getCurrentState() + "状态");
-            }
-        }
+        // 切换红绿灯状态
+        TrafficLightEntity.LightState nextState = light.getState() == TrafficLightEntity.LightState.RED ?
+                TrafficLightEntity.LightState.GREEN : TrafficLightEntity.LightState.RED;
+        light.setState(nextState);
+        
+        // 修复：替换debug()为info()，添加[DEBUG]标识
+        plugin.getLogger().info("[DEBUG] 红绿灯" + light.getId() + "切换为" + nextState + "状态");
     }
 }

@@ -91,11 +91,13 @@ public class TrafficLightCommand implements CommandExecutor, TabCompleter {
     }
 
     // 子指令接口
-    public interface SubCommand {
-        boolean hasPermission(CommandSender sender);
-        void execute(CommandSender sender, String[] args);
-        default List<String> tabComplete(CommandSender sender, String[] args) {
-            return Collections.emptyList();
-        }
-    }
+    interface SubCommand {
+         boolean hasPermission(CommandSender sender);
+         void execute(CommandSender sender, String[] args);
+         
+         // 默认实现tabComplete，避免子类调用super出错
+         default List<String> tabComplete(CommandSender sender, String[] args) {
+             return List.of();
+         }
+     }
 }
