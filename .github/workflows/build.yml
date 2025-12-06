@@ -3,9 +3,9 @@ name: TrafficLight CI/CD
 # 触发条件：push 到任意分支、手动触发
 on:
   push:
-    branches: [ '*' ] # 匹配所有分支（包括 main、dev、feature/* 等）
-    tags: [ 'v*' ]    # 保留版本标签触发
-  workflow_dispatch: # 允许手动触发
+    branches: [ '*' ] # 匹配所有分支
+    tags: [ 'v*' ]    # 版本标签触发
+  workflow_dispatch: # 手动触发
 
 jobs:
   # 构建校验任务
@@ -17,21 +17,21 @@ jobs:
       jar_name: ${{ steps.build.outputs.jar_name }}
 
     steps:
-      # 1. 检查代码
+      # 1. 检查代码（拉取完整历史）
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 拉取所有提交记录
+          fetch-depth: 0
 
-      # 2. 检查Commit信息，判断是否拒绝构建/是否创建Release
+      # 2. 检查Commit信息，判断构建/发布逻辑
       - name: Check commit message
         id: check_commit
         run: |
-          # 获取最新commit信息
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          # 获取最新commit信息（容错：兼容手动触发/PR场景）
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" 2>/dev/null || echo "manual trigger")
           echo "Latest commit message: $COMMIT_MSG"
           
-          # 检测是否包含 [miss build]，拒绝执行
+          # 检测[miss build]，终止构建
           if echo "$COMMIT_MSG" | grep -qi "\[miss build\]"; then
             echo "❌ Commit contains [miss build], aborting build..."
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -39,7 +39,7 @@ jobs:
             exit 0
           fi
           
-          # 检测是否包含 [release]，标记需要创建Release
+          # 检测[release]，标记发布
           if echo "$COMMIT_MSG" | grep -qi "\[release\]"; then
             echo "✅ Commit contains [release], will create Release later"
             echo "should_release=true" >> $GITHUB_OUTPUT
@@ -49,7 +49,7 @@ jobs:
           fi
           
           echo "should_build=true" >> $GITHUB_OUTPUT
-        shell: /usr/bin/bash -e {0}
+        shell: bash
 
       # 3. 跳过构建（如果标记为不构建）
       - name: Skip build if needed
@@ -57,77 +57,106 @@ jobs:
         run: |
           echo "Build aborted due to [miss build] in commit"
           exit 0
-        shell: /usr/bin/bash -e {0}
+        shell: bash
 
-      # 4. 配置JDK 17（适配Paper 1.20+）
+      # 4. 配置JDK 17（自动缓存，无需手动指定JAVA_HOME）
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: maven # 缓存Maven依赖
+          cache: maven # 自动缓存Maven依赖
 
-      # 5. 提取版本号（修复分支名硬编码+容错）
+      # 5. 提取版本号（增强容错+标准化）
       - name: Extract version
         id: extract_version
         run: |
-          # 开启错误退出，任何命令失败立即终止
-          set -e
-          # 优先从pom.xml提取版本号（添加SSL容错参数）
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true)
-          # 容错：若Maven命令失败，使用默认版本
-          if [ -z "$VERSION" ]; then
+          set -euo pipefail # 严格模式：任意错误立即终止
+          
+          # 从pom.xml提取版本（添加Maven镜像+SSL容错）
+          VERSION=$(
+            mvn help:evaluate -Dexpression=project.version -q -DforceStdout \
+            -Dmaven.wagon.http.ssl.insecure=true \
+            -Dmaven.wagon.http.ssl.allowall=true \
+            -Dmaven.wagon.http.ssl.ignore.validity.dates=true 2>/dev/null || echo "1.0.0-SNAPSHOT"
+          )
+          
+          # 容错：空版本处理
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
             VERSION="1.0.0-SNAPSHOT"
             echo "⚠️ 从pom.xml提取版本失败，使用默认版本：$VERSION"
           fi
           echo "原始版本号：$VERSION"
           
-          # 如果是快照版，追加提交哈希和分支名
+          # 快照版追加分支+提交哈希（标准化命名）
           if echo "$VERSION" | grep -qi "SNAPSHOT"; then
-            # 获取提交哈希（容错）
-            COMMIT_HASH=$(git rev-parse --short HEAD || echo "unknown")
-            # 获取GitHub分支名（适配推送/PR/手动触发等场景）
-            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_\-]/-/g')
-            # 容错：若分支名为空，使用默认值
-            if [ -z "$BRANCH_NAME" ]; then
-              BRANCH_NAME="unknown-branch"
-            fi
-            # 拼接版本号（避免重复分隔符）
-            VERSION="${VERSION}-${BRANCH_NAME}-${COMMIT_HASH}"
+            # 提交哈希（容错）
+            COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            # 分支名（兼容所有触发场景，特殊字符替换）
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_\-]/-/g' | cut -c1-30)
+            BRANCH_NAME=${BRANCH_NAME:-"unknown-branch"} # 空值容错
+            # 拼接版本（避免重复分隔符）
+            VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')"-SNAPSHOT-${BRANCH_NAME}-${COMMIT_HASH}"
           fi
           
-          # 输出版本号到GitHub Output
+          # 输出最终版本
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ 最终提取版本号：$VERSION"
-        shell: /usr/bin/bash -e {0}
-        env:
-          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
-          JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
+          echo "✅ 最终版本号：$VERSION"
+        shell: bash
 
-      # 6. 构建Maven项目
+      # 6. 构建Maven项目（增强容错+产物校验）
       - name: Build with Maven
         id: build
         run: |
-          # 执行Maven打包（添加SSL容错参数）
-          mvn clean package -B -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
-          # 获取生成的Jar包名称（过滤original-前缀的原始包）
-          JAR_NAME=$(ls target/*.jar | grep -v "original-" | xargs -n1 basename || echo "TrafficLight-unknown.jar")
-          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
-          echo "Built Jar: $JAR_NAME"
+          set -euo pipefail
           
-          # 复制Jar包到易访问的目录
+          # 执行Maven打包（强制刷新快照+SSL容错）
+          mvn clean package -B \
+            -Dmaven.wagon.http.ssl.insecure=true \
+            -Dmaven.wagon.http.ssl.allowall=true \
+            -Dmaven.wagon.http.ssl.ignore.validity.dates=true \
+            -U # 强制更新快照依赖
+          
+          # 校验target目录是否存在
+          if [ ! -d "target" ]; then
+            echo "❌ target目录不存在，构建失败"
+            exit 1
+          fi
+          
+          # 获取Jar包名称（容错：兼容多Jar/无Jar场景）
+          JAR_FILES=$(ls target/*.jar 2>/dev/null | grep -v "original-" || true)
+          if [ -z "$JAR_FILES" ]; then
+            echo "⚠️ 未找到构建的Jar包，使用默认名称"
+            JAR_NAME="TrafficLight-unknown.jar"
+          else
+            JAR_NAME=$(basename "$JAR_FILES" | head -n1) # 取第一个Jar包
+          fi
+          
+          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
+          echo "✅ 构建产物：$JAR_NAME"
+          
+          # 复制产物到统一目录（容错）
           mkdir -p build-output
-          cp target/$JAR_NAME build-output/ || echo "⚠️ Jar包复制失败，检查构建产物"
+          if [ -f "target/$JAR_NAME" ]; then
+            cp "target/$JAR_NAME" build-output/
+            echo "✅ 复制Jar包到build-output目录"
+          else
+            echo "⚠️ Jar包不存在，跳过复制"
+            touch build-output/empty.txt # 避免上传为空
+          fi
+          
+          # 列出产物目录
           ls -la build-output/
-        shell: /usr/bin/bash -e {0}
+        shell: bash
 
-      # 7. 上传构建产物
+      # 7. 上传构建产物（容错：允许空目录）
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: TrafficLight-${{ steps.extract_version.outputs.version }}
-          path: build-output/*.jar
+          path: build-output/
           retention-days: 7
+          if-no-files-found: warn # 无文件时仅警告，不终止
 
   # 自动创建Release任务（仅当标记为需要Release时执行）
   release:
@@ -142,25 +171,41 @@ jobs:
           name: TrafficLight-${{ needs.build.outputs.version }}
           path: build-output
 
-      # 2. 创建GitHub Release（修复表达式语法错误）
+      # 2. 校验产物是否存在
+      - name: Validate build artifact
+        run: |
+          set -euo pipefail
+          if [ ! -f "build-output/${{ needs.build.outputs.jar_name }}" ]; then
+            echo "❌ 构建产物不存在，发布失败"
+            exit 1
+          fi
+          ls -la build-output/
+        shell: bash
+
+      # 3. 创建GitHub Release（修复标签/名称/正文语法）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # 修复：使用format函数拼接版本号，避免+号语法错误
-          tag_name: ${{ startsWith(needs.build.outputs.version, 'v') && needs.build.outputs.version || format('v{0}', needs.build.outputs.version) }}
-          name: TrafficLight ${{ needs.build.outputs.version }} (${{ github.ref_name }})
+          # 标准化标签（确保以v开头）
+          tag_name: ${{ format('v{0}', needs.build.outputs.version) }}
+          # Release名称（标准化）
+          name: "TrafficLight ${{ needs.build.outputs.version }} (${{ github.ref_name }})"
+          # Release正文（兼容无提交信息场景）
           body: |
             ## 🚀 TrafficLight Release ${{ needs.build.outputs.version }}
-            ### 分支：${{ github.ref_name }} | 构建时间：${{ github.event.head_commit.timestamp }}
-            ### 提交哈希：${{ github.sha }} | 提交信息：${{ github.event.head_commit.message }}
+            ### 分支：${{ github.ref_name }} | 构建时间：${{ github.run_at }}
+            ### 提交哈希：${{ github.sha }}
+            ${{ github.event.head_commit.message && format('### 提交信息：{0}', github.event.head_commit.message) || '### 触发方式：手动构建' }}
             
-            #### 自动构建说明
-            - 基于 `${{ github.ref_name }}` 分支最新提交构建
-            - Jar包适配 Paper 1.20+ (Java 17)
-            - 构建产物：${{ needs.build.outputs.jar_name }}
-          # 上传Jar包到Release（容错）
-          files: build-output/${{ needs.build.outputs.jar_name }}
-          # 非主分支标记为预发布
+            #### 构建说明
+            - 基于 `${{ github.ref_name }}` 分支构建
+            - 适配 Paper 1.20+ (Java 17)
+            - 产物：${{ needs.build.outputs.jar_name }}
+          # 上传产物（绝对路径容错）
+          files: ${{ github.workspace }}/build-output/${{ needs.build.outputs.jar_name }}
+          # 预发布标记（兼容main/master分支）
           prerelease: ${{ github.ref_name != 'main' && github.ref_name != 'master' }}
+          # 允许覆盖已有标签（可选）
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
