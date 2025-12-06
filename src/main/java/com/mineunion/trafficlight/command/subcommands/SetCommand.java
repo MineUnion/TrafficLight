@@ -4,10 +4,9 @@ import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
+import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.command.CommandSender;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,65 +26,73 @@ public class SetCommand implements TrafficLightCommand.SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // 参数校验
-        if (args.length < 3) {
-            sender.sendMessage("§c用法：/tl set <名称> <颜色> <时长>");
-            sender.sendMessage("§7颜色支持：red/green/yellow（红/绿/黄）");
+        // 权限校验
+        if (!hasPermission(sender)) {
+            MessageUtil.sendError(sender, "no-permission");
             return;
         }
-        String name = args[0];
-        String color = args[1].toLowerCase();
+
+        // 参数校验（必须传入 ID、状态、持续时间）
+        if (args.length < 4) {
+            MessageUtil.sendError(sender, "set-usage");
+            MessageUtil.sendMessage(sender, "set-state-valid");
+            return;
+        }
+
+        String id = args[1];
+        String stateStr = args[2];
         int duration;
 
-        // 解析时长
+        // 校验持续时间（必须是正整数）
         try {
-            duration = Integer.parseInt(args[2]);
-            if (duration < 1) {
-                sender.sendMessage("§c时长必须大于0！");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            sender.sendMessage("§c时长必须是数字！");
+            duration = Integer.parseInt(args[3]);
+            if (duration <= 0) throw new IllegalArgumentException();
+        } catch (IllegalArgumentException e) {
+            MessageUtil.sendError(sender, "set-duration-valid");
             return;
         }
 
-        // 解析颜色
+        // 校验状态（必须是 RED/GREEN/YELLOW）
         TrafficLightEntity.LightState state;
-        switch (color) {
-            case "red":
-            case "红":
-                state = TrafficLightEntity.LightState.RED;
-                break;
-            case "green":
-            case "绿":
-                state = TrafficLightEntity.LightState.GREEN;
-                break;
-            case "yellow":
-            case "黄":
-                state = TrafficLightEntity.LightState.YELLOW;
-                break;
-            default:
-                sender.sendMessage("§c无效的颜色！支持：red/green/yellow（红/绿/黄）");
-                return;
+        try {
+            state = TrafficLightEntity.LightState.valueOf(stateStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            MessageUtil.sendError(sender, "set-state-valid");
+            return;
         }
 
-        // 设置时长
-        boolean success = lightManager.setLightDuration(name, state, duration);
+        // 调用管理器设置持续时间
+        boolean success = lightManager.setLightDuration(id, state, duration);
+
         if (success) {
-            sender.sendMessage("§a红绿灯" + name + "的" + color + "灯时长已设置为" + duration + "秒！");
+            MessageUtil.sendMessage(sender, "set-success", 
+                    "id", id, 
+                    "state", state.name(), 
+                    "duration", duration);
         } else {
-            sender.sendMessage("§c红绿灯" + name + "不存在！");
+            MessageUtil.sendError(sender, "set-fail-not-found", "id", id);
         }
     }
 
-    // 指令补全（颜色）
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
+        // 仅当有设置权限时显示补全
+        if (!hasPermission(sender)) return List.of();
+
+        // 补全逻辑：
+        // args[1] → 红绿灯 ID
         if (args.length == 2) {
-            List<String> colors = Arrays.asList("red", "green", "yellow", "红", "绿", "黄");
-            return colors.stream().filter(c -> c.startsWith(args[1])).collect(Collectors.toList());
+            return lightManager.getAllLights().stream()
+                    .map(light -> light.getId())
+                    .collect(Collectors.toList());
         }
-        // 修复：替换super调用为返回空列表
-        return Collections.emptyList();
+        // args[2] → 状态（RED/GREEN/YELLOW）
+        else if (args.length == 3) {
+            return List.of("RED", "GREEN", "YELLOW");
+        }
+        // args[3] → 持续时间（无补全）
+        else {
+            return List.of();
+        }
     }
 }

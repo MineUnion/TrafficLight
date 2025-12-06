@@ -3,8 +3,11 @@ package com.mineunion.trafficlight.command.subcommands;
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
+import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.List;
 
 public class CreateCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
@@ -22,39 +25,49 @@ public class CreateCommand implements TrafficLightCommand.SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // 必须是玩家执行（需要位置）
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("§c只有玩家可以执行此指令！");
+        // 权限校验
+        if (!hasPermission(sender)) {
+            MessageUtil.sendError(sender, "no-permission");
             return;
         }
-        Player player = (Player) sender;
 
-        // 参数校验
-        if (args.length < 1) {
-            sender.sendMessage("§c用法：/tl create <名称> [时长]");
+        // 仅玩家可执行（创建位置基于玩家当前坐标）
+        if (!(sender instanceof Player player)) {
+            MessageUtil.sendError(sender, "only-player");
             return;
         }
-        String name = args[0];
-        int duration = plugin.getConfigManager().getDefaultDuration();
-        if (args.length >= 2) {
-            try {
-                duration = Integer.parseInt(args[1]);
-                if (duration < 1) {
-                    sender.sendMessage("§c时长必须大于0！");
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§c时长必须是数字！");
-                return;
-            }
+
+        // 参数校验（必须传入 ID 和名称）
+        if (args.length < 3) {
+            MessageUtil.sendError(sender, "create-usage");
+            return;
         }
 
-        // 创建红绿灯
-        boolean success = lightManager.createTrafficLight(name, player.getLocation());
+        String id = args[1];
+        String name = args[2];
+
+        // 校验 ID 格式（仅允许字母、数字、下划线）
+        if (!id.matches("^[a-zA-Z0-9_]+$")) {
+            MessageUtil.sendError(sender, "create-fail-invalid-id");
+            return;
+        }
+
+        // 调用管理器创建红绿灯（位置为玩家当前位置）
+        boolean success = lightManager.createTrafficLight(id, name, player.getLocation());
+
         if (success) {
-            sender.sendMessage("§a红绿灯" + name + "创建成功！默认时长：" + duration + "秒");
+            MessageUtil.sendMessage(sender, "create-success", "name", name, "id", id);
         } else {
-            sender.sendMessage("§c红绿灯名称已存在！");
+            MessageUtil.sendError(sender, "create-fail-exist", "id", id);
         }
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String[] args) {
+        // 仅当有创建权限时显示补全
+        if (!hasPermission(sender)) return List.of();
+        
+        // 补全逻辑：args[1] 为 ID（无补全），args[2] 为名称（无补全）
+        return List.of();
     }
 }

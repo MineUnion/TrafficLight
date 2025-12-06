@@ -2,18 +2,21 @@ package com.mineunion.trafficlight.command.subcommands;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
+import com.mineunion.trafficlight.manager.TrafficLightManager;
+import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class ListCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
+    private final TrafficLightManager lightManager;
 
     public ListCommand(TrafficLight plugin) {
         this.plugin = plugin;
+        this.lightManager = plugin.getTrafficLightManager();
     }
 
     @Override
@@ -23,26 +26,35 @@ public class ListCommand implements TrafficLightCommand.SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("§c仅玩家可执行此命令！");
+        // 权限校验
+        if (!hasPermission(sender)) {
+            MessageUtil.sendError(sender, "no-permission");
             return;
         }
 
-        Player player = (Player) sender;
-        List<String> lightNames = plugin.getTrafficLightManager().getAllLightNames();
+        // 仅玩家可执行（可选，根据需求调整）
+        if (!(sender instanceof Player)) {
+            MessageUtil.sendError(sender, "only-player");
+            return;
+        }
+
+        // 获取所有红绿灯名称
+        List<String> lightNames = lightManager.getAllLightNames();
         
         if (lightNames.isEmpty()) {
-            sender.sendMessage("§7当前无已配置的红绿灯！");
+            MessageUtil.sendMessage(sender, "list-empty");
             return;
         }
 
-        sender.sendMessage("§a已配置的红绿灯列表：");
-        sender.sendMessage("§7- " + String.join("\n§7- ", lightNames));
+        // 发送列表（拼接名称，每行显示5个）
+        MessageUtil.sendMessage(sender, "list-title");
+        String lightList = lightNames.stream()
+                .collect(Collectors.joining(" §8| §7", "§7- ", ""));
+        sender.sendMessage(lightList);
     }
 
-    // 修复：移除super.tabComplete()，直接返回空列表
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
-        return Collections.emptyList();
+        return List.of();
     }
 }
