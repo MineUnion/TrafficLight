@@ -1,0 +1,140 @@
+name: TrafficLight CI/CD
+
+# 触发条件：push 到任意分支、手动触发
+on:
+  push:
+    branches: [ '*' ] # 匹配所有分支（包括 main、dev、feature/* 等）
+    tags: [ 'v*' ]    # 保留版本标签触发
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  # 构建校验任务
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check_commit.outputs.should_release }}
+      version: ${{ steps.extract_version.outputs.version }}
+      jar_name: ${{ steps.build.outputs.jar_name }}
+
+    steps:
+      # 1. 检查代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 拉取所有提交记录
+
+      # 2. 检查Commit信息，判断是否拒绝构建/是否创建Release
+      - name: Check commit message
+        id: check_commit
+        run: |
+          # 获取最新commit信息
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          echo "Latest commit message: $COMMIT_MSG"
+          
+          # 检测是否包含 [miss build]，拒绝执行
+          if echo "$COMMIT_MSG" | grep -qi "\[miss build\]"; then
+            echo "❌ Commit contains [miss build], aborting build..."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 检测是否包含 [release]，标记需要创建Release
+          if echo "$COMMIT_MSG" | grep -qi "\[release\]"; then
+            echo "✅ Commit contains [release], will create Release later"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ No [release] in commit, skip Release creation"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "should_build=true" >> $GITHUB_OUTPUT
+
+      # 3. 跳过构建（如果标记为不构建）
+      - name: Skip build if needed
+        if: steps.check_commit.outputs.should_build == 'false'
+        run: |
+          echo "Build aborted due to [miss build] in commit"
+          exit 0
+
+      # 4. 配置JDK 17（适配Paper 1.20+）
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven # 缓存Maven依赖
+
+      # 5. 提取版本号（从pom.xml解析）
+      - name: Extract version
+        id: extract_version
+        run: |
+          # 优先从pom.xml提取版本号
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          # 如果是快照版，追加提交哈希和分支名
+          if echo "$VERSION" | grep -qi "SNAPSHOT"; then
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g') # 替换分支名中的/为-
+            VERSION="${VERSION}-${BRANCH_NAME}-${COMMIT_HASH}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      # 6. 构建Maven项目
+      - name: Build with Maven
+        id: build
+        run: |
+          # 执行Maven打包
+          mvn clean package -B
+          # 获取生成的Jar包名称
+          JAR_NAME=$(ls target/*.jar | grep -v "original-" | xargs -n1 basename)
+          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
+          echo "Built Jar: $JAR_NAME"
+          
+          # 复制Jar包到易访问的目录
+          mkdir -p build-output
+          cp target/$JAR_NAME build-output/
+          ls -la build-output/
+
+      # 7. 上传构建产物
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrafficLight-${{ steps.extract_version.outputs.version }}
+          path: build-output/*.jar
+          retention-days: 7
+
+  # 自动创建Release任务（仅当标记为需要Release时执行）
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: needs.build.outputs.should_release == 'true'
+    steps:
+      # 1. 下载构建产物
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TrafficLight-${{ needs.build.outputs.version }}
+          path: build-output
+
+      # 2. 创建GitHub Release
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Release标题和标签（追加分支名，避免冲突）
+          tag_name: v${{ needs.build.outputs.version }}
+          name: TrafficLight v${{ needs.build.outputs.version }} (${{ github.ref_name }})
+          body: |
+            ## 🚀 TrafficLight Release v${{ needs.build.outputs.version }}
+            ### 分支：${{ github.ref_name }} | 构建时间：${{ github.event.head_commit.timestamp }}
+            ### 提交哈希：${{ github.sha }} | 提交信息：${{ github.event.head_commit.message }}
+            
+            #### 自动构建说明
+            - 基于 `${{ github.ref_name }}` 分支最新提交构建
+            - Jar包适配 Paper 1.20+ (Java 17)
+          # 上传Jar包到Release
+          files: build-output/${{ needs.build.outputs.jar_name }}
+          # 非主分支标记为预发布
+          prerelease: ${{ github.ref_name != 'main' && github.ref_name != 'master' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
