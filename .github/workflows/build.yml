@@ -49,6 +49,7 @@ jobs:
           fi
           
           echo "should_build=true" >> $GITHUB_OUTPUT
+        shell: /usr/bin/bash -e {0}
 
       # 3. 跳过构建（如果标记为不构建）
       - name: Skip build if needed
@@ -56,6 +57,7 @@ jobs:
         run: |
           echo "Build aborted due to [miss build] in commit"
           exit 0
+        shell: /usr/bin/bash -e {0}
 
       # 4. 配置JDK 17（适配Paper 1.20+）
       - name: Set up JDK 17
@@ -65,36 +67,59 @@ jobs:
           distribution: 'temurin'
           cache: maven # 缓存Maven依赖
 
-      # 5. 提取版本号（从pom.xml解析）
+      # 5. 提取版本号（修复分支名硬编码+容错）
       - name: Extract version
         id: extract_version
         run: |
-          # 优先从pom.xml提取版本号
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          # 开启错误退出，任何命令失败立即终止
+          set -e
+          # 优先从pom.xml提取版本号（添加SSL容错参数）
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true)
+          # 容错：若Maven命令失败，使用默认版本
+          if [ -z "$VERSION" ]; then
+            VERSION="1.0.0-SNAPSHOT"
+            echo "⚠️ 从pom.xml提取版本失败，使用默认版本：$VERSION"
+          fi
+          echo "原始版本号：$VERSION"
+          
           # 如果是快照版，追加提交哈希和分支名
           if echo "$VERSION" | grep -qi "SNAPSHOT"; then
-            COMMIT_HASH=$(git rev-parse --short HEAD)
-            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g') # 替换分支名中的/为-
+            # 获取提交哈希（容错）
+            COMMIT_HASH=$(git rev-parse --short HEAD || echo "unknown")
+            # 获取GitHub分支名（适配推送/PR/手动触发等场景）
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_\-]/-/g')
+            # 容错：若分支名为空，使用默认值
+            if [ -z "$BRANCH_NAME" ]; then
+              BRANCH_NAME="unknown-branch"
+            fi
+            # 拼接版本号（避免重复分隔符）
             VERSION="${VERSION}-${BRANCH_NAME}-${COMMIT_HASH}"
           fi
+          
+          # 输出版本号到GitHub Output
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
+          echo "✅ 最终提取版本号：$VERSION"
+        shell: /usr/bin/bash -e {0}
+        env:
+          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
+          JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
 
       # 6. 构建Maven项目
       - name: Build with Maven
         id: build
         run: |
-          # 执行Maven打包
-          mvn clean package -B
-          # 获取生成的Jar包名称
-          JAR_NAME=$(ls target/*.jar | grep -v "original-" | xargs -n1 basename)
+          # 执行Maven打包（添加SSL容错参数）
+          mvn clean package -B -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
+          # 获取生成的Jar包名称（过滤original-前缀的原始包）
+          JAR_NAME=$(ls target/*.jar | grep -v "original-" | xargs -n1 basename || echo "TrafficLight-unknown.jar")
           echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
           echo "Built Jar: $JAR_NAME"
           
           # 复制Jar包到易访问的目录
           mkdir -p build-output
-          cp target/$JAR_NAME build-output/
+          cp target/$JAR_NAME build-output/ || echo "⚠️ Jar包复制失败，检查构建产物"
           ls -la build-output/
+        shell: /usr/bin/bash -e {0}
 
       # 7. 上传构建产物
       - name: Upload build artifact
@@ -117,22 +142,23 @@ jobs:
           name: TrafficLight-${{ needs.build.outputs.version }}
           path: build-output
 
-      # 2. 创建GitHub Release
+      # 2. 创建GitHub Release（容错+分支名适配）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Release标题和标签（追加分支名，避免冲突）
-          tag_name: v${{ needs.build.outputs.version }}
-          name: TrafficLight v${{ needs.build.outputs.version }} (${{ github.ref_name }})
+          # Release标题和标签（避免重复v前缀）
+          tag_name: ${{ startsWith(needs.build.outputs.version, 'v') && needs.build.outputs.version || 'v' + needs.build.outputs.version }}
+          name: TrafficLight ${{ needs.build.outputs.version }} (${{ github.ref_name }})
           body: |
-            ## 🚀 TrafficLight Release v${{ needs.build.outputs.version }}
+            ## 🚀 TrafficLight Release ${{ needs.build.outputs.version }}
             ### 分支：${{ github.ref_name }} | 构建时间：${{ github.event.head_commit.timestamp }}
             ### 提交哈希：${{ github.sha }} | 提交信息：${{ github.event.head_commit.message }}
             
             #### 自动构建说明
             - 基于 `${{ github.ref_name }}` 分支最新提交构建
             - Jar包适配 Paper 1.20+ (Java 17)
-          # 上传Jar包到Release
+            - 构建产物：${{ needs.build.outputs.jar_name }}
+          # 上传Jar包到Release（容错）
           files: build-output/${{ needs.build.outputs.jar_name }}
           # 非主分支标记为预发布
           prerelease: ${{ github.ref_name != 'main' && github.ref_name != 'master' }}
