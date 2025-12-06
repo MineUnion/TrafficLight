@@ -15,16 +15,25 @@ public class ConfigManager {
     private FileConfiguration config;
     private File configFile;
 
-    // 配置项默认值
-    private int proximityRadius = 10; //  proximity检测半径
-    private boolean autoSave = true; // 自动保存开关
+    // 基础配置
+    private int proximityRadius = 10;
+    private boolean autoSave = true;
+    private long autoSaveInterval = 60 * 20L; // 60秒 = 1200刻
+
+    // 性能优化配置（新增）
+    private int proximityCheckInterval = 20;
+    private boolean asyncProximityCheck = true;
+
+    // 默认时长配置
+    private int defaultRedDuration = 30;
+    private int defaultGreenDuration = 30;
+    private int defaultYellowDuration = 5;
 
     public ConfigManager(TrafficLight plugin) {
         this.plugin = plugin;
         loadConfig();
     }
 
-    // 加载配置文件
     public void loadConfig() {
         configFile = new File(plugin.getDataFolder(), "config.yml");
         if (!configFile.exists()) {
@@ -33,15 +42,24 @@ public class ConfigManager {
         }
         config = YamlConfiguration.loadConfiguration(configFile);
 
-        // 读取配置项
+        // 加载所有配置项（带默认值）
         this.proximityRadius = config.getInt("proximity-radius", 10);
         this.autoSave = config.getBoolean("auto-save", true);
+        this.autoSaveInterval = config.getInt("auto-save-interval", 60) * 20L;
+        this.proximityCheckInterval = config.getInt("proximity-check-interval", 20);
+        this.asyncProximityCheck = config.getBoolean("async-proximity-check", true);
+        this.defaultRedDuration = config.getInt("default-duration.red", 30);
+        this.defaultGreenDuration = config.getInt("default-duration.green", 30);
+        this.defaultYellowDuration = config.getInt("default-duration.yellow", 5);
     }
 
-    // 保存红绿灯数据到配置
+    // 保存红绿灯数据
     public void saveTrafficLights(Map<String, TrafficLightEntity> lights) {
-        if (!autoSave) return;
+        if (!autoSave) {
+            return;
+        }
 
+        config.set("traffic-lights", null); // 清空原有数据
         for (Map.Entry<String, TrafficLightEntity> entry : lights.entrySet()) {
             String path = "traffic-lights." + entry.getKey();
             TrafficLightEntity light = entry.getValue();
@@ -52,6 +70,9 @@ public class ConfigManager {
             config.set(path + ".world", light.getLocation().getWorld().getName());
             config.set(path + ".state", light.getState().name());
             config.set(path + ".activated", light.isActivated());
+            config.set(path + ".duration.red", light.getDuration(TrafficLightEntity.LightState.RED));
+            config.set(path + ".duration.green", light.getDuration(TrafficLightEntity.LightState.GREEN));
+            config.set(path + ".duration.yellow", light.getDuration(TrafficLightEntity.LightState.YELLOW));
         }
 
         try {
@@ -61,13 +82,46 @@ public class ConfigManager {
         }
     }
 
-    // 加载红绿灯数据从配置
+    // 加载红绿灯数据
     public Map<String, Object> loadTrafficLights() {
-        return (Map<String, Object>) config.get("traffic-lights", new HashMap<>());
+        Object data = config.get("traffic-lights");
+        return data instanceof Map ? (Map<String, Object>) data : new HashMap<>();
     }
 
-    // Getter/Setter
-    public int getProximityRadius() { return proximityRadius; }
-    public boolean isAutoSave() { return autoSave; }
-    public FileConfiguration getConfig() { return config; }
+    // 所有 Getter 方法（完整）
+    public int getProximityRadius() {
+        return proximityRadius;
+    }
+
+    public boolean isAutoSave() {
+        return autoSave;
+    }
+
+    public long getAutoSaveInterval() {
+        return autoSaveInterval;
+    }
+
+    public int getProximityCheckInterval() {
+        return proximityCheckInterval;
+    }
+
+    public boolean isAsyncProximityCheck() {
+        return asyncProximityCheck;
+    }
+
+    public int getDefaultRedDuration() {
+        return defaultRedDuration;
+    }
+
+    public int getDefaultGreenDuration() {
+        return defaultGreenDuration;
+    }
+
+    public int getDefaultYellowDuration() {
+        return defaultYellowDuration;
+    }
+
+    public FileConfiguration getConfig() {
+        return config;
+    }
 }
