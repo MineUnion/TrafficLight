@@ -37,6 +37,7 @@
 
     <build>
         <plugins>
+            <!-- 编译插件（移除冲突的 --release 参数） -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -44,12 +45,14 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
-                    <compilerArgs>
+                    <!-- 移除以下冲突的配置 -->
+                    <!-- <compilerArgs>
                         <arg>--release</arg>
                         <arg>17</arg>
-                    </compilerArgs>
+                    </compilerArgs> -->
                 </configuration>
             </plugin>
+            <!-- 打包插件 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
