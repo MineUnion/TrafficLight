@@ -1,0 +1,43 @@
+name: TrafficLight
+version: 1.0.0
+main: com.mineunion.trafficlight.TrafficLight
+api-version: 1.21
+author: MineUnion
+description: 轻量可定制的Minecraft红绿灯控制插件
+website: https://github.com/MineUnion/TrafficLight
+
+# 指令配置
+commands:
+  trafficlight:
+    aliases: [tl]
+    description: 红绿灯核心指令
+    usage: /<command> [create/delete/set/list/reload] [参数...]
+    permission: mu.trafficlight.use
+    permission-message: 你没有权限执行此指令！
+
+# 权限配置
+permissions:
+  mu.trafficlight.*:
+    description: 所有红绿灯管理权限
+    default: op
+    children:
+      mu.trafficlight.create: true
+      mu.trafficlight.delete: true
+      mu.trafficlight.set: true
+      mu.trafficlight.list: true
+      mu.trafficlight.reload: true
+  mu.trafficlight.create:
+    description: 创建红绿灯权限
+    default: op
+  mu.trafficlight.delete:
+    description: 删除红绿灯权限
+    default: op
+  mu.trafficlight.set:
+    description: 修改红绿灯配置权限
+    default: op
+  mu.trafficlight.list:
+    description: 查看红绿灯列表权限
+    default: op
+  mu.trafficlight.reload:
+    description: 重载配置权限
+    default: op

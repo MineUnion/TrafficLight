@@ -1,0 +1,31 @@
+# 全局配置
+global:
+  # 默认红绿灯切换时长（秒）
+  default_duration: 10
+  # 是否启用距离激活（true/false）
+  proximity_activation: true
+  # 激活距离（方块数）
+  activation_radius: 50
+  # 默认语言（zh_CN/en_US）
+  language: zh_CN
+  # 数据存储方式（file=文件存储，mysql=MySQL存储）
+  storage_type: file
+  # 距离检测间隔（秒，越小越精准但略耗性能）
+  proximity_check_interval: 2
+
+# MySQL配置（仅当storage_type为mysql时生效）
+mysql:
+  host: localhost
+  port: 3306
+  database: trafficlight
+  username: root
+  password: 123456
+  # 连接池大小
+  pool_size: 5
+
+# 红绿灯分组配置
+groups:
+  city_center:
+    world: "world"
+    lights: ["tl_main_street", "tl_park_entrance"]
+    sync: true # 是否同步分组内红绿灯状态
