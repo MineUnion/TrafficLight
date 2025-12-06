@@ -142,12 +142,12 @@ jobs:
           name: TrafficLight-${{ needs.build.outputs.version }}
           path: build-output
 
-      # 2. 创建GitHub Release（容错+分支名适配）
+      # 2. 创建GitHub Release（修复表达式语法错误）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Release标题和标签（避免重复v前缀）
-          tag_name: ${{ startsWith(needs.build.outputs.version, 'v') && needs.build.outputs.version || 'v' + needs.build.outputs.version }}
+          # 修复：使用format函数拼接版本号，避免+号语法错误
+          tag_name: ${{ startsWith(needs.build.outputs.version, 'v') && needs.build.outputs.version || format('v{0}', needs.build.outputs.version) }}
           name: TrafficLight ${{ needs.build.outputs.version }} (${{ github.ref_name }})
           body: |
             ## 🚀 TrafficLight Release ${{ needs.build.outputs.version }}
