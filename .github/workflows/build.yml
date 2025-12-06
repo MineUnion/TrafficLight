@@ -1,77 +1,62 @@
 name: TrafficLight CI/CD
 
-# 触发条件：push 到主分支/标签，或手动触发
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ] # 匹配 v1.0.0 等版本标签
-  workflow_dispatch: # 允许手动触发
+    branches: [ * ]
+  workflow_dispatch:
 
 jobs:
-  # 构建校验任务
   build:
     runs-on: ubuntu-latest
     outputs:
-      should_release: ${{ steps.check_commit.outputs.should_release }} # 传递是否创建Release的标记
-      version: ${{ steps.extract_version.outputs.version }} # 传递版本号
-      jar_name: ${{ steps.build.outputs.jar_name }} # 传递Jar包名称
+      should_release: ${{ steps.check_commit.outputs.should_release }}
+      version: ${{ steps.extract_version.outputs.version }}
+      jar_name: ${{ steps.build.outputs.jar_name }}
 
     steps:
-      # 1. 检查代码
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 拉取所有提交记录，用于解析commit信息
+          fetch-depth: 0
 
-      # 2. 检查Commit信息，判断是否拒绝构建/是否创建Release
       - name: Check commit message
         id: check_commit
         run: |
-          # 获取最新commit信息
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
           echo "Latest commit message: $COMMIT_MSG"
           
-          # 检测是否包含 [miss build]，拒绝执行
           if echo "$COMMIT_MSG" | grep -qi "\[miss build\]"; then
-            echo "❌ Commit contains [miss build], aborting build..."
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "should_release=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          # 检测是否包含 [release]，标记需要创建Release
           if echo "$COMMIT_MSG" | grep -qi "\[release\]"; then
-            echo "✅ Commit contains [release], will create Release later"
             echo "should_release=true" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️ No [release] in commit, skip Release creation"
             echo "should_release=false" >> $GITHUB_OUTPUT
           fi
           
           echo "should_build=true" >> $GITHUB_OUTPUT
 
-      # 3. 跳过构建（如果标记为不构建）
       - name: Skip build if needed
         if: steps.check_commit.outputs.should_build == 'false'
         run: |
           echo "Build aborted due to [miss build] in commit"
           exit 0
 
-      # 4. 配置JDK（适配Minecraft插件的Java 8）
-      - name: Set up JDK 8
+      # 关键修改：使用 Java 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'temurin'
-          cache: maven # 缓存Maven依赖，加速构建
+          cache: maven
 
-      # 5. 提取版本号（从pom.xml或commit中解析）
       - name: Extract version
         id: extract_version
         run: |
-          # 优先从pom.xml提取版本号
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          # 如果是快照版，追加提交哈希
           if echo "$VERSION" | grep -qi "SNAPSHOT"; then
             COMMIT_HASH=$(git rev-parse --short HEAD)
             VERSION="${VERSION}-${COMMIT_HASH}"
@@ -79,48 +64,37 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
 
-      # 6. 构建Maven项目
       - name: Build with Maven
         id: build
         run: |
-          # 执行Maven打包
           mvn clean package -B
-          # 获取生成的Jar包名称
           JAR_NAME=$(ls target/*.jar | grep -v "original-" | xargs -n1 basename)
           echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
-          echo "Built Jar: $JAR_NAME"
-          
-          # 复制Jar包到易访问的目录（方便后续上传）
           mkdir -p build-output
           cp target/$JAR_NAME build-output/
           ls -la build-output/
 
-      # 7. 上传构建产物（作为Artifact）
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: TrafficLight-${{ steps.extract_version.outputs.version }}
           path: build-output/*.jar
-          retention-days: 7 # 保留7天
+          retention-days: 7
 
-  # 自动创建Release任务（仅当标记为需要Release时执行）
   release:
-    needs: build # 依赖build任务完成
+    needs: build
     runs-on: ubuntu-latest
     if: needs.build.outputs.should_release == 'true'
     steps:
-      # 1. 下载构建产物
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: TrafficLight-${{ needs.build.outputs.version }}
           path: build-output
 
-      # 2. 创建GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Release标题和标签
           tag_name: v${{ needs.build.outputs.version }}
           name: TrafficLight v${{ needs.build.outputs.version }}
           body: |
@@ -131,9 +105,7 @@ jobs:
             
             ### 更新内容
             ${{ github.event.head_commit.message }}
-          # 上传Jar包到Release
           files: build-output/${{ needs.build.outputs.jar_name }}
-          # 标记为预发布（可选）
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub自动生成的令牌，无需手动配置
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
