@@ -1,0 +1,47 @@
+# TrafficLight English Language File
+
+# Message prefix
+prefix: "§6[TrafficLight] §r"
+
+# Common messages
+no-permission: "§cYou don't have permission to execute this command!"
+player-only: "§cThis command can only be executed by players!"
+invalid-command: "§cInvalid command! Use /tl help for help."
+light-not-found: "§cTraffic light not found!"
+light-already-exists: "§cTraffic light already exists!"
+light-created: "§aTraffic light created successfully: §e{name}"
+light-deleted: "§aTraffic light deleted successfully: §e{id}"
+light-toggled: "§aTraffic light toggled successfully: §e{name} §a({status})"
+light-switched: "§aTraffic light switched successfully: §e{name} §a→ §e{state}"
+light-set: "§aTraffic light duration set successfully: §e{name} §a{state} §e{duration}s"
+reloaded: "§aTrafficLight plugin reloaded successfully!"
+saved: "§aTraffic light data saved successfully!"
+
+# Help messages
+help.header: "§aTrafficLight Help"
+help-list:
+  - "§e/tl help §7- Show this help message"
+  - "§e/tl create <id> <name> §7- Create a new traffic light"
+  - "§e/tl delete <id> §7- Delete a traffic light"
+  - "§e/tl list §7- List all traffic lights"
+  - "§e/tl info <id> §7- Show traffic light info"
+  - "§e/tl set <id> <red/green/yellow> <duration> §7- Set light duration"
+  - "§e/tl switch <id> <red/green/yellow> §7- Switch light state"
+  - "§e/tl toggle <id> §7- Toggle traffic light activation"
+  - "§e/tl reload §7- Reload plugin config"
+  - "§e/tl language <zh_CN/en_US> §7- Switch plugin language"
+  - "§e/tl update §7- Check for plugin updates"
+
+# Info messages
+info.header: "§aTraffic Light Info"
+info.format: "§eID: §a{id}\n§eName: §a{name}\n§eLocation: §a{world} ({x}, {y}, {z})\n§eState: §a{state}\n§eActivated: §a{activated}\n§eDurations: §aRed {red}s / Green {green}s / Yellow {yellow}s"
+
+# Update messages
+update.available: "§aA new version of TrafficLight is available: §e{new-version} §a(Current: §e{current-version}§a)"
+update.not-available: "§aYou are using the latest version of TrafficLight."
+update.checking: "§aChecking for updates..."
+update.failed: "§cFailed to check for updates: {error}"
+
+# Language messages
+language.changed: "§aLanguage changed successfully to: §e{language}"
+language.invalid: "§cInvalid language! Supported languages: zh_CN, en_US"

@@ -7,6 +7,10 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,6 +20,10 @@ public class ConfigManager {
     private File configFile;
     private File trafficLightsFile;
     private FileConfiguration trafficLightsConfig;
+
+    // 配置版本
+    private static final String CURRENT_CONFIG_VERSION = "1.0.0";
+    private String configVersion = CURRENT_CONFIG_VERSION;
 
     // 基础配置
     private int proximityRadius = 10;
@@ -48,6 +56,9 @@ public class ConfigManager {
             plugin.saveResource("config.yml", false);
         }
         config = YamlConfiguration.loadConfiguration(configFile);
+        
+        // 检查并更新配置文件版本
+        checkConfigVersion();
 
         this.proximityRadius = config.getInt("proximity-radius", 10);
         this.autoSave = config.getBoolean("auto-save", true);
@@ -59,6 +70,77 @@ public class ConfigManager {
         this.defaultRedDuration = config.getInt("default-duration.red", 30);
         this.defaultGreenDuration = config.getInt("default-duration.green", 30);
         this.defaultYellowDuration = config.getInt("default-duration.yellow", 5);
+    }
+    
+    // 检查并更新配置文件版本
+    private void checkConfigVersion() {
+        // 读取配置文件版本
+        String fileVersion = config.getString("config-version");
+        
+        // 如果配置文件没有版本号，或者版本号不匹配
+        if (fileVersion == null || !fileVersion.equals(CURRENT_CONFIG_VERSION)) {
+            plugin.getLogger().info("正在更新配置文件... 当前版本: " + (fileVersion == null ? "未知" : fileVersion) + ", 目标版本: " + CURRENT_CONFIG_VERSION);
+            
+            // 备份旧配置
+            backupOldConfig();
+            
+            // 更新配置文件
+            updateConfigFile();
+            
+            // 重新加载配置
+            config = YamlConfiguration.loadConfiguration(configFile);
+            
+            plugin.getLogger().info("配置文件更新完成！");
+        }
+        
+        // 更新当前配置版本
+        this.configVersion = CURRENT_CONFIG_VERSION;
+    }
+    
+    // 备份旧配置
+    private void backupOldConfig() {
+        try {
+            File backupFile = new File(plugin.getDataFolder(), "config.yml.backup." + System.currentTimeMillis());
+            Files.copy(configFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            plugin.getLogger().info("旧配置文件已备份到: " + backupFile.getName());
+        } catch (IOException e) {
+            plugin.getLogger().severe("备份旧配置文件失败: " + e.getMessage());
+        }
+    }
+    
+    // 更新配置文件
+    private void updateConfigFile() {
+        try {
+            // 加载默认配置
+            InputStream defaultConfigStream = plugin.getResource("config.yml");
+            if (defaultConfigStream == null) {
+                plugin.getLogger().severe("无法加载默认配置文件！");
+                return;
+            }
+            
+            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultConfigStream));
+            
+            // 合并配置，保留原有配置值
+            for (String key : defaultConfig.getKeys(true)) {
+                if (!config.contains(key)) {
+                    // 添加新配置项
+                    config.set(key, defaultConfig.get(key));
+                    if (isDebugMode()) {
+                        plugin.getLogger().info("[Debug] 添加新配置项: " + key + " = " + defaultConfig.get(key));
+                    }
+                }
+            }
+            
+            // 更新配置版本
+            config.set("config-version", CURRENT_CONFIG_VERSION);
+            
+            // 保存更新后的配置
+            config.save(configFile);
+            
+        } catch (Exception e) {
+            plugin.getLogger().severe("更新配置文件失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     // 初始化红绿灯数据文件
@@ -77,39 +159,79 @@ public class ConfigManager {
     // 保存红绿灯数据
     @SuppressWarnings("unchecked")
     public void saveTrafficLights(Map<String, TrafficLightEntity> lights) {
-        if (!autoSave) return;
-
-        trafficLightsConfig.set("traffic-lights", null);
-        for (Map.Entry<String, TrafficLightEntity> entry : lights.entrySet()) {
-            String path = "traffic-lights." + entry.getKey();
-            TrafficLightEntity light = entry.getValue();
-            trafficLightsConfig.set(path + ".name", light.getName());
-            trafficLightsConfig.set(path + ".x", light.getLocation().getX());
-            trafficLightsConfig.set(path + ".y", light.getLocation().getY());
-            trafficLightsConfig.set(path + ".z", light.getLocation().getZ());
-            trafficLightsConfig.set(path + ".world", light.getLocation().getWorld().getName());
-            trafficLightsConfig.set(path + ".state", light.getState().name());
-            trafficLightsConfig.set(path + ".activated", light.isActivated());
-            trafficLightsConfig.set(path + ".duration.red", light.getDuration(TrafficLightEntity.LightState.RED));
-            trafficLightsConfig.set(path + ".duration.green", light.getDuration(TrafficLightEntity.LightState.GREEN));
-            trafficLightsConfig.set(path + ".duration.yellow", light.getDuration(TrafficLightEntity.LightState.YELLOW));
+        if (lights == null || lights.isEmpty()) {
+            if (isDebugMode()) {
+                plugin.getLogger().info("[Debug] 没有红绿灯数据需要保存");
+            }
+            return;
         }
 
         try {
+            // 清空现有数据
+            trafficLightsConfig.set("traffic-lights", null);
+            
+            // 逐个保存红绿灯数据
+            for (Map.Entry<String, TrafficLightEntity> entry : lights.entrySet()) {
+                String path = "traffic-lights." + entry.getKey();
+                TrafficLightEntity light = entry.getValue();
+                
+                // 确保位置和世界存在
+                if (light.getLocation() == null || light.getLocation().getWorld() == null) {
+                    plugin.getLogger().warning("跳过保存红绿灯 " + entry.getKey() + "：位置或世界无效");
+                    continue;
+                }
+                
+                trafficLightsConfig.set(path + ".name", light.getName());
+                trafficLightsConfig.set(path + ".x", light.getLocation().getX());
+                trafficLightsConfig.set(path + ".y", light.getLocation().getY());
+                trafficLightsConfig.set(path + ".z", light.getLocation().getZ());
+                trafficLightsConfig.set(path + ".world", light.getLocation().getWorld().getName());
+                trafficLightsConfig.set(path + ".state", light.getState().name());
+                trafficLightsConfig.set(path + ".activated", light.isActivated());
+                trafficLightsConfig.set(path + ".duration.red", light.getDuration(TrafficLightEntity.LightState.RED));
+                trafficLightsConfig.set(path + ".duration.green", light.getDuration(TrafficLightEntity.LightState.GREEN));
+                trafficLightsConfig.set(path + ".duration.yellow", light.getDuration(TrafficLightEntity.LightState.YELLOW));
+            }
+
+            // 确保数据文件所在目录存在
+            if (!trafficLightsFile.getParentFile().exists()) {
+                trafficLightsFile.getParentFile().mkdirs();
+            }
+            
+            // 保存文件
             trafficLightsConfig.save(trafficLightsFile);
+            
             if (isDebugMode()) {
                 plugin.getLogger().info("[Debug] 成功保存 " + lights.size() + " 个红绿灯数据");
             }
         } catch (IOException e) {
             plugin.getLogger().severe("保存红绿灯数据失败：" + e.getMessage());
+            e.printStackTrace();
+        } catch (Exception e) {
+            plugin.getLogger().severe("保存红绿灯数据时发生未知异常：" + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     // 加载红绿灯数据
     @SuppressWarnings("unchecked")
     public Map<String, Object> loadTrafficLights() {
-        Object data = trafficLightsConfig.get("traffic-lights");
-        return data instanceof Map ? (Map<String, Object>) data : new HashMap<>();
+        try {
+            Object data = trafficLightsConfig.get("traffic-lights");
+            if (data instanceof Map<?, ?> mapData) {
+                // 确保返回正确的Map<String, Object>结构
+                Map<String, Object> result = new HashMap<>();
+                for (Map.Entry<?, ?> entry : mapData.entrySet()) {
+                    if (entry.getKey() instanceof String key) {
+                        result.put(key, entry.getValue());
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("加载红绿灯数据时发生异常：" + e.getMessage());
+        }
+        return new HashMap<>();
     }
 
     // 自动保存任务

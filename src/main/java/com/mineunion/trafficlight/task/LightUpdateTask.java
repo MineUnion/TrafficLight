@@ -42,10 +42,14 @@ public class LightUpdateTask extends BukkitRunnable {
         }
 
         light.setState(nextState);
-        plugin.getLogger().info("[DEBUG] 红绿灯" + light.getName() + "切换为" + nextState + "状态（持续" + light.getDuration(nextState) + "秒）");
+        if (plugin.getConfigManager().isDebugMode()) {
+            plugin.getLogger().info("[Debug] 红绿灯" + light.getName() + "切换为" + nextState + "状态（持续" + light.getDuration(nextState) + "秒）");
+        }
 
         // 重新调度任务（按当前状态的持续时间）
         this.cancel();
-        new LightUpdateTask(plugin, light).runTaskLater(plugin, light.getDuration(nextState) * 20L);
+        if (light.isActivated()) {
+            new LightUpdateTask(plugin, light).runTaskLater(plugin, light.getDuration(nextState) * 20L);
+        }
     }
 }

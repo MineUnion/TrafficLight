@@ -4,6 +4,7 @@ import com.mineunion.trafficlight.command.TrafficLightCommand;
 import com.mineunion.trafficlight.manager.ConfigManager; // 正确导入
 import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
+import com.mineunion.trafficlight.manager.UpdateManager;
 import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -12,6 +13,7 @@ public class TrafficLight extends JavaPlugin {
     private ConfigManager configManager;
     private LanguageManager languageManager;
     private TrafficLightManager trafficLightManager;
+    private UpdateManager updateManager;
 
     @Override
     public void onEnable() {
@@ -54,5 +56,9 @@ public class TrafficLight extends JavaPlugin {
 
     public TrafficLightManager getTrafficLightManager() {
         return trafficLightManager;
+    }
+    
+    public UpdateManager getUpdateManager() {
+        return updateManager;
     }
 }
