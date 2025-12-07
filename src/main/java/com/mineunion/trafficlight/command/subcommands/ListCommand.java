@@ -2,59 +2,56 @@ package com.mineunion.trafficlight.command.subcommands;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
+import com.mineunion.trafficlight.entity.TrafficLightEntity;
+import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
-import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ListCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
-    private final TrafficLightManager lightManager;
+    private final LanguageManager languageManager;
+    private final TrafficLightManager trafficLightManager;
 
     public ListCommand(TrafficLight plugin) {
         this.plugin = plugin;
-        this.lightManager = plugin.getTrafficLightManager();
+        this.languageManager = plugin.getLanguageManager();
+        this.trafficLightManager = plugin.getTrafficLightManager();
     }
 
     @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("mu.trafficlight.list");
-    }
+    public boolean execute(CommandSender sender, String[] args) {
+        List<TrafficLightEntity> allLights = trafficLightManager.getAllTrafficLights();
+        int lightCount = allLights.size();
 
-    @Override
-    public void execute(CommandSender sender, String[] args) {
-        // 权限校验
-        if (!hasPermission(sender)) {
-            MessageUtil.sendError(sender, "no-permission");
-            return;
+        // 发送标题
+        sender.sendMessage(
+            languageManager.getMessage("list-title")
+                .replace("%count%", String.valueOf(lightCount))
+        );
+
+        // 发送每个红绿灯信息
+        if (lightCount == 0) {
+            sender.sendMessage("§7- 暂无已创建的红绿灯");
+            return true;
         }
 
-        // 仅玩家可执行（可选，根据需求调整）
-        if (!(sender instanceof Player)) {
-            MessageUtil.sendError(sender, "only-player");
-            return;
+        for (TrafficLightEntity light : allLights) {
+            String state = switch (light.getState()) {
+                case RED -> "§c红灯";
+                case GREEN -> "§a绿灯";
+                case YELLOW -> "§e黄灯";
+            };
+            sender.sendMessage(
+                languageManager.getMessage("list-item")
+                    .replace("%id%", light.getId())
+                    .replace("%name%", light.getName())
+                    .replace("%world%", light.getLocation().getWorld().getName())
+                    .replace("%state%", state)
+            );
         }
 
-        // 获取所有红绿灯名称
-        List<String> lightNames = lightManager.getAllLightNames();
-        
-        if (lightNames.isEmpty()) {
-            MessageUtil.sendMessage(sender, "list-empty");
-            return;
-        }
-
-        // 发送列表（拼接名称，每行显示5个）
-        MessageUtil.sendMessage(sender, "list-title");
-        String lightList = lightNames.stream()
-                .collect(Collectors.joining(" §8| §7", "§7- ", ""));
-        sender.sendMessage(lightList);
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
-        return List.of();
+        return true;
     }
 }

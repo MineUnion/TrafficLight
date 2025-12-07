@@ -1,14 +1,13 @@
 package com.mineunion.trafficlight.command.subcommands;
 
 import com.mineunion.trafficlight.TrafficLight;
+import com.mineunion.trafficlight.command.TrafficLightCommand;
 import com.mineunion.trafficlight.manager.ConfigManager;
 import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
-public class ReloadCommand implements CommandExecutor {
+public class ReloadCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
     private final LanguageManager languageManager;
 
@@ -18,7 +17,7 @@ public class ReloadCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+    public boolean execute(CommandSender sender, String[] args) {
         // 权限校验
         if (!sender.hasPermission("mu.trafficlight.reload") && !sender.isOp()) {
             sender.sendMessage(languageManager.getMessage("no-permission"));

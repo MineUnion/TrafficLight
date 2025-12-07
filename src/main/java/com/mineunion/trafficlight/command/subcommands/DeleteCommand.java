@@ -2,60 +2,55 @@ package com.mineunion.trafficlight.command.subcommands;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
+import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
-import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.command.CommandSender;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class DeleteCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
-    private final TrafficLightManager lightManager;
+    private final LanguageManager languageManager;
+    private final TrafficLightManager trafficLightManager;
 
     public DeleteCommand(TrafficLight plugin) {
         this.plugin = plugin;
-        this.lightManager = plugin.getTrafficLightManager();
+        this.languageManager = plugin.getLanguageManager();
+        this.trafficLightManager = plugin.getTrafficLightManager();
     }
 
     @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("mu.trafficlight.delete");
-    }
-
-    @Override
-    public void execute(CommandSender sender, String[] args) {
-        // 权限校验
-        if (!hasPermission(sender)) {
-            MessageUtil.sendError(sender, "no-permission");
-            return;
+    public boolean execute(CommandSender sender, String[] args) {
+        // 参数校验（需传入 ID）
+        if (args.length < 1) {
+            sender.sendMessage(languageManager.getMessage("argument-error") + "：/tl delete <ID>");
+            return true;
         }
 
-        // 参数校验（必须传入 ID）
-        if (args.length < 2) {
-            MessageUtil.sendError(sender, "delete-usage");
-            return;
+        String lightId = args[0];
+        // 检查红绿灯是否存在
+        if (trafficLightManager.getLight(lightId) == null) {
+            sender.sendMessage(
+                languageManager.getMessage("light-not-found")
+                    .replace("%id%", lightId)
+            );
+            return true;
         }
-
-        String id = args[1];
 
         // 调用管理器删除红绿灯
-        boolean success = lightManager.deleteTrafficLight(id);
-
-        if (success) {
-            MessageUtil.sendMessage(sender, "delete-success", "id", id);
+        boolean deleteSuccess = trafficLightManager.deleteTrafficLight(lightId);
+        if (deleteSuccess) {
+            sender.sendMessage(
+                languageManager.getMessage("delete-success")
+                    .replace("%id%", lightId)
+            );
+            // 删除后保存数据
+            trafficLightManager.saveAllTrafficLights();
         } else {
-            MessageUtil.sendError(sender, "delete-fail-not-found", "id", id);
+            sender.sendMessage(
+                languageManager.getMessage("delete-failed")
+                    .replace("%id%", lightId)
+            );
         }
-    }
 
-    @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
-        // 仅当有删除权限且输入到 args[1] 时，补全已存在的红绿灯 ID
-        if (!hasPermission(sender) || args.length != 2) return List.of();
-        
-        return lightManager.getAllLights().stream()
-                .map(light -> light.getId())
-                .collect(Collectors.toList());
+        return true;
     }
 }
