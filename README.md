@@ -1,6 +1,7 @@
 ![Header](https://capsule-render.vercel.app/api?type=Waving&color=timeGradient&height=300&animation=fadeIn&section=header&text=TrafficLight&fontSize=120)
 
 ---
+
 <div align="center">
   <h2>🚀 TrafficLight</h2>
   <p style="font-size: 1.1rem; color: #666; margin: 1rem 0 2rem;">轻量可定制的 Minecraft 红绿灯控制插件</p>
