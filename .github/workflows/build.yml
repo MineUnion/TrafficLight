@@ -14,6 +14,7 @@ jobs:
     outputs:
       should_release: ${{ steps.check_commit.outputs.should_release }}
       version: ${{ steps.extract_version.outputs.version }}
+      display_version: ${{ steps.extract_version.outputs.display_version }} # 新增：用于展示的版本（含build号）
       jar_name: ${{ steps.build.outputs.jar_name }}
 
     steps:
@@ -67,41 +68,53 @@ jobs:
           distribution: 'temurin'
           cache: maven # 自动缓存Maven依赖
 
-      # 5. 提取版本号（增强容错+标准化）
+      # 5. 提取版本号（核心修改：添加build号）
       - name: Extract version
         id: extract_version
         run: |
           set -euo pipefail # 严格模式：任意错误立即终止
           
-          # 从pom.xml提取版本（添加Maven镜像+SSL容错）
-          VERSION=$(
+          # 从pom.xml提取基础版本（主版本.次版本.修订版）
+          BASE_VERSION=$(
             mvn help:evaluate -Dexpression=project.version -q -DforceStdout \
             -Dmaven.wagon.http.ssl.insecure=true \
             -Dmaven.wagon.http.ssl.allowall=true \
-            -Dmaven.wagon.http.ssl.ignore.validity.dates=true 2>/dev/null || echo "1.0.0-SNAPSHOT"
+            -Dmaven.wagon.http.ssl.ignore.validity.dates=true 2>/dev/null || echo "1.0.0"
           )
           
           # 容错：空版本处理
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            VERSION="1.0.0-SNAPSHOT"
-            echo "⚠️ 从pom.xml提取版本失败，使用默认版本：$VERSION"
+          if [ -z "$BASE_VERSION" ] || [ "$BASE_VERSION" = "null" ]; then
+            BASE_VERSION="1.0.0"
+            echo "⚠️ 从pom.xml提取版本失败，使用默认基础版本：$BASE_VERSION"
           fi
-          echo "原始版本号：$VERSION"
           
-          # 快照版追加分支+提交哈希（标准化命名）
-          if echo "$VERSION" | grep -qi "SNAPSHOT"; then
+          # 移除SNAPSHOT后缀（仅保留主版本.次版本.修订版）
+          BASE_VERSION=$(echo "$BASE_VERSION" | sed 's/-SNAPSHOT//g')
+          echo "基础版本号：$BASE_VERSION"
+          
+          # 获取GitHub Actions构建号（每次触发自增，全局唯一）
+          BUILD_NUMBER=${{ github.run_number }}
+          echo "构建号：$BUILD_NUMBER"
+          
+          # 拼接展示版本（核心格式：TrafficLight 1.0.2 build XXX）
+          DISPLAY_VERSION="TrafficLight $BASE_VERSION build $BUILD_NUMBER"
+          
+          # 快照版追加分支+提交哈希（开发环境标识）
+          if echo "${{ mvn help:evaluate -Dexpression=project.version -q -DforceStdout }}" | grep -qi "SNAPSHOT"; then
             # 提交哈希（容错）
             COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
             # 分支名（兼容所有触发场景，特殊字符替换）
             BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_\-]/-/g' | cut -c1-30)
             BRANCH_NAME=${BRANCH_NAME:-"unknown-branch"} # 空值容错
-            # 拼接版本（避免重复分隔符）
-            VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')"-SNAPSHOT-${BRANCH_NAME}-${COMMIT_HASH}"
+            # 追加开发信息
+            DISPLAY_VERSION="$DISPLAY_VERSION - $BRANCH_NAME - $COMMIT_HASH"
           fi
           
-          # 输出最终版本
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ 最终版本号：$VERSION"
+          # 输出最终版本（version：供文件名使用；display_version：供展示/Release使用）
+          echo "version=$BASE_VERSION-build-$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "display_version=$DISPLAY_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ 最终展示版本：$DISPLAY_VERSION"
+          echo "✅ 产物版本标识：$BASE_VERSION-build-$BUILD_NUMBER"
         shell: bash
 
       # 6. 构建Maven项目（增强容错+产物校验）
@@ -123,13 +136,17 @@ jobs:
             exit 1
           fi
           
-          # 获取Jar包名称（容错：兼容多Jar/无Jar场景）
-          JAR_FILES=$(ls target/*.jar 2>/dev/null | grep -v "original-" || true)
-          if [ -z "$JAR_FILES" ]; then
+          # 获取Jar包名称（重命名为：基础版本-build-构建号.jar，便于识别）
+          BASE_VERSION=$(echo "${{ steps.extract_version.outputs.version }}" | cut -d'-' -f1-3)
+          ORIGINAL_JAR=$(ls target/*.jar 2>/dev/null | grep -v "original-" | head -n1 || true)
+          
+          if [ -z "$ORIGINAL_JAR" ]; then
             echo "⚠️ 未找到构建的Jar包，使用默认名称"
-            JAR_NAME="TrafficLight-unknown.jar"
+            JAR_NAME="TrafficLight-$BASE_VERSION.jar"
           else
-            JAR_NAME=$(basename "$JAR_FILES" | head -n1) # 取第一个Jar包
+            # 重命名Jar包（含版本+构建号）
+            JAR_NAME="TrafficLight-$BASE_VERSION.jar"
+            cp "$ORIGINAL_JAR" "target/$JAR_NAME"
           fi
           
           echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
@@ -153,7 +170,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrafficLight-${{ steps.extract_version.outputs.version }}
+          name: ${{ steps.extract_version.outputs.display_version }}
           path: build-output/
           retention-days: 7
           if-no-files-found: warn # 无文件时仅警告，不终止
@@ -168,7 +185,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: TrafficLight-${{ needs.build.outputs.version }}
+          name: ${{ needs.build.outputs.display_version }}
           path: build-output
 
       # 2. 校验产物是否存在
@@ -182,24 +199,25 @@ jobs:
           ls -la build-output/
         shell: bash
 
-      # 3. 创建GitHub Release（修复标签/名称/正文语法）
+      # 3. 创建GitHub Release（使用含build号的展示版本）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # 标准化标签（确保以v开头）
-          tag_name: ${{ format('v{0}', needs.build.outputs.version) }}
-          # Release名称（标准化）
-          name: "TrafficLight ${{ needs.build.outputs.version }} (${{ github.ref_name }})"
+          # 标准化标签（含build号，避免重复）
+          tag_name: v${{ needs.build.outputs.version }}
+          # Release名称（核心格式：TrafficLight 1.0.2 build XXX）
+          name: ${{ needs.build.outputs.display_version }}
           # Release正文（兼容无提交信息场景）
           body: |
-            ## 🚀 TrafficLight Release ${{ needs.build.outputs.version }}
+            ## 🚀 ${{ needs.build.outputs.display_version }}
             ### 分支：${{ github.ref_name }} | 构建时间：${{ github.run_at }}
-            ### 提交哈希：${{ github.sha }}
+            ### 构建号：${{ github.run_number }} | 提交哈希：${{ github.sha }}
             ${{ github.event.head_commit.message && format('### 提交信息：{0}', github.event.head_commit.message) || '### 触发方式：手动构建' }}
             
             #### 构建说明
             - 基于 `${{ github.ref_name }}` 分支构建
             - 产物：${{ needs.build.outputs.jar_name }}
+            - 版本格式：主版本.次版本.修订版 build 构建号（构建号全局自增）
           # 上传产物（绝对路径容错）
           files: ${{ github.workspace }}/build-output/${{ needs.build.outputs.jar_name }}
           # 预发布标记（兼容main/master分支）

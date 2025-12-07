@@ -1,6 +1,6 @@
 name: TrafficLight
 main: com.mineunion.trafficlight.TrafficLight
-version: 1.0.1
+version: 1.0.2
 api-version: "1.21"
 authors: [MineUnion]
 description: 一款Minecraft红绿灯插件，支持多世界、距离触发、数据持久化
