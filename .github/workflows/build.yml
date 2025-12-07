@@ -68,14 +68,14 @@ jobs:
           distribution: 'temurin'
           cache: maven # 自动缓存Maven依赖
 
-      # 5. 提取版本号（核心修改：添加build号）
+      # 5. 提取版本号（核心修改：修复mvn命令嵌套语法错误）
       - name: Extract version
         id: extract_version
         run: |
           set -euo pipefail # 严格模式：任意错误立即终止
           
-          # 从pom.xml提取基础版本（主版本.次版本.修订版）
-          BASE_VERSION=$(
+          # 步骤1：从pom.xml提取完整版本（含SNAPSHOT）
+          FULL_VERSION=$(
             mvn help:evaluate -Dexpression=project.version -q -DforceStdout \
             -Dmaven.wagon.http.ssl.insecure=true \
             -Dmaven.wagon.http.ssl.allowall=true \
@@ -83,24 +83,25 @@ jobs:
           )
           
           # 容错：空版本处理
-          if [ -z "$BASE_VERSION" ] || [ "$BASE_VERSION" = "null" ]; then
-            BASE_VERSION="1.0.0"
-            echo "⚠️ 从pom.xml提取版本失败，使用默认基础版本：$BASE_VERSION"
+          if [ -z "$FULL_VERSION" ] || [ "$FULL_VERSION" = "null" ]; then
+            FULL_VERSION="1.0.0"
+            echo "⚠️ 从pom.xml提取版本失败，使用默认版本：$FULL_VERSION"
           fi
+          echo "完整版本（含SNAPSHOT）：$FULL_VERSION"
           
-          # 移除SNAPSHOT后缀（仅保留主版本.次版本.修订版）
-          BASE_VERSION=$(echo "$BASE_VERSION" | sed 's/-SNAPSHOT//g')
+          # 步骤2：提取基础版本（移除SNAPSHOT后缀）
+          BASE_VERSION=$(echo "$FULL_VERSION" | sed 's/-SNAPSHOT//g')
           echo "基础版本号：$BASE_VERSION"
           
-          # 获取GitHub Actions构建号（每次触发自增，全局唯一）
+          # 步骤3：获取GitHub Actions构建号（每次触发自增，全局唯一）
           BUILD_NUMBER=${{ github.run_number }}
           echo "构建号：$BUILD_NUMBER"
           
-          # 拼接展示版本（核心格式：TrafficLight 1.0.2 build XXX）
+          # 步骤4：拼接展示版本（核心格式：TrafficLight 1.0.2 build XXX）
           DISPLAY_VERSION="TrafficLight $BASE_VERSION build $BUILD_NUMBER"
           
-          # 快照版追加分支+提交哈希（开发环境标识）
-          if echo "${{ mvn help:evaluate -Dexpression=project.version -q -DforceStdout }}" | grep -qi "SNAPSHOT"; then
+          # 步骤5：快照版追加分支+提交哈希（开发环境标识）
+          if echo "$FULL_VERSION" | grep -qi "SNAPSHOT"; then
             # 提交哈希（容错）
             COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
             # 分支名（兼容所有触发场景，特殊字符替换）
@@ -137,15 +138,15 @@ jobs:
           fi
           
           # 获取Jar包名称（重命名为：基础版本-build-构建号.jar，便于识别）
-          BASE_VERSION=$(echo "${{ steps.extract_version.outputs.version }}" | cut -d'-' -f1-3)
+          BASE_VERSION=$(echo "${{ steps.extract_version.outputs.version }}" | cut -d'-' -f1)
           ORIGINAL_JAR=$(ls target/*.jar 2>/dev/null | grep -v "original-" | head -n1 || true)
           
           if [ -z "$ORIGINAL_JAR" ]; then
             echo "⚠️ 未找到构建的Jar包，使用默认名称"
-            JAR_NAME="TrafficLight-$BASE_VERSION.jar"
+            JAR_NAME="TrafficLight-$BASE_VERSION-build-${{ github.run_number }}.jar"
           else
             # 重命名Jar包（含版本+构建号）
-            JAR_NAME="TrafficLight-$BASE_VERSION.jar"
+            JAR_NAME="TrafficLight-$BASE_VERSION-build-${{ github.run_number }}.jar"
             cp "$ORIGINAL_JAR" "target/$JAR_NAME"
           fi
           
