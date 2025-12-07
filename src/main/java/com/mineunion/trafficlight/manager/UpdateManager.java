@@ -145,7 +145,7 @@ public class UpdateManager {
             }
             
             // 解析JSON响应，提取browser_download_url
-            Pattern pattern = Pattern.compile("\"browser_download_url\"\s*:\s*\"([^\"]+\.jar)\"");
+            Pattern pattern = Pattern.compile("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.jar)\"");
             Matcher matcher = pattern.matcher(response.toString());
             if (matcher.find()) {
                 return matcher.group(1);
