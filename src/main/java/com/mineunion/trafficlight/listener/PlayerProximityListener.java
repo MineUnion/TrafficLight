@@ -2,48 +2,65 @@ package com.mineunion.trafficlight.listener;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
-import com.mineunion.trafficlight.manager.ConfigManager;
+import com.mineunion.trafficlight.manager.ConfigManager; // 正确导入
 import com.mineunion.trafficlight.manager.TrafficLightManager;
-import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.List;
 
 public class PlayerProximityListener implements Listener {
     private final TrafficLight plugin;
-    private final TrafficLightManager lightManager;
     private final ConfigManager configManager;
-    private int proximityRadius;
+    private final TrafficLightManager trafficLightManager;
+    private final int proximityRadius;
 
     public PlayerProximityListener(TrafficLight plugin) {
         this.plugin = plugin;
-        this.lightManager = plugin.getTrafficLightManager();
-        this.configManager = plugin.getConfigManager(); // 修复：获取ConfigManager
+        this.configManager = plugin.getConfigManager();
+        this.trafficLightManager = plugin.getTrafficLightManager();
         this.proximityRadius = configManager.getProximityRadius();
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
+    // 玩家退出服务器时，禁用所有由该玩家激活的红绿灯
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (!configManager.isProximityTrigger()) {
+            return;
+        }
+
         Player player = event.getPlayer();
-        String worldName = player.getWorld().getName();
-        // 调用补充的getTrafficLightsByWorld方法
-        List<TrafficLightEntity> lightsInWorld = lightManager.getTrafficLightsByWorld(worldName);
+        List<TrafficLightEntity> allLights = trafficLightManager.getAllTrafficLights();
 
-        for (TrafficLightEntity tle : lightsInWorld) {
-            double distance = player.getLocation().distance(tle.getLocation());
-            boolean isInRange = distance <= proximityRadius;
+        for (TrafficLightEntity light : allLights) {
+            if (light.isActivated() && player.getLocation().distance(light.getLocation()) <= proximityRadius) {
+                trafficLightManager.updateLightActivation(light, false);
+                if (configManager.isDebugMode()) {
+                    plugin.getLogger().info("[Debug] 玩家 " + player.getName() + " 退出，禁用红绿灯：" + light.getId());
+                }
+            }
+        }
+    }
 
-            // 距离触发激活/禁用（示例逻辑，可根据需求调整）
-            if (isInRange && !tle.isActivated()) {
-                lightManager.updateLightActivation(tle, true);
-                MessageUtil.sendMessage(player, "你已进入红绿灯 " + tle.getName() + " 的触发范围，已激活！");
-            } else if (!isInRange && tle.isActivated()) {
-                lightManager.updateLightActivation(tle, false);
-                MessageUtil.sendMessage(player, "你已离开红绿灯 " + tle.getName() + " 的触发范围，已禁用！");
+    // 玩家传送时，禁用原位置附近的红绿灯
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (!configManager.isProximityTrigger() || event.isCancelled()) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        List<TrafficLightEntity> allLights = trafficLightManager.getAllTrafficLights();
+
+        for (TrafficLightEntity light : allLights) {
+            if (light.isActivated() && player.getLocation().distance(light.getLocation()) <= proximityRadius) {
+                trafficLightManager.updateLightActivation(light, false);
+                if (configManager.isDebugMode()) {
+                    plugin.getLogger().info("[Debug] 玩家 " + player.getName() + " 传送，禁用红绿灯：" + light.getId());
+                }
             }
         }
     }

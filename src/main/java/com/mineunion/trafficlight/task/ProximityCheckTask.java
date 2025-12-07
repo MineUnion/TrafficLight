@@ -2,7 +2,7 @@ package com.mineunion.trafficlight.task;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
-import com.mineunion.trafficlight.manager.ConfigManager;
+import com.mineunion.trafficlight.manager.ConfigManager; // 正确导入
 import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -12,50 +12,44 @@ import java.util.List;
 
 public class ProximityCheckTask extends BukkitRunnable {
     private final TrafficLight plugin;
-    private final TrafficLightManager lightManager;
     private final ConfigManager configManager;
-    private int proximityRadius;
+    private final TrafficLightManager trafficLightManager;
+    private final int proximityRadius;
 
     public ProximityCheckTask(TrafficLight plugin) {
         this.plugin = plugin;
-        this.lightManager = plugin.getTrafficLightManager();
         this.configManager = plugin.getConfigManager();
+        this.trafficLightManager = plugin.getTrafficLightManager();
         this.proximityRadius = configManager.getProximityRadius();
     }
 
     @Override
     public void run() {
-        // 关键修复：调用正确的 getAllTrafficLights() 方法
-        List<TrafficLightEntity> allLights = lightManager.getAllTrafficLights();
+        // 未开启距离触发则跳过
+        if (!configManager.isProximityTrigger()) {
+            return;
+        }
+
+        List<TrafficLightEntity> allLights = trafficLightManager.getAllTrafficLights();
         if (allLights.isEmpty()) {
             return;
         }
 
-        // 异步检测（如果配置启用）
-        if (configManager.isAsyncProximityCheck()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                executeProximityCheck(allLights);
-            });
-        } else {
-            executeProximityCheck(allLights);
-        }
-    }
-
-    // 核心检测逻辑
-    private void executeProximityCheck(List<TrafficLightEntity> allLights) {
+        // 遍历所有玩家
         for (Player player : Bukkit.getOnlinePlayers()) {
-            String worldName = player.getWorld().getName();
-            List<TrafficLightEntity> lightsInWorld = lightManager.getTrafficLightsByWorld(worldName);
+            // 遍历所有红绿灯，检查玩家是否在触发范围内
+            for (TrafficLightEntity light : allLights) {
+                if (light.isActivated()) {
+                    continue; // 已激活则跳过
+                }
 
-            for (TrafficLightEntity tle : lightsInWorld) {
-                double distance = player.getLocation().distance(tle.getLocation());
-                boolean shouldActivate = distance <= proximityRadius;
-
-                if (tle.isActivated() != shouldActivate) {
-                    // 切换到主线程更新状态（避免异步操作实体）
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        lightManager.updateLightActivation(tle, shouldActivate);
-                    });
+                double distance = player.getLocation().distance(light.getLocation());
+                if (distance <= proximityRadius) {
+                    // 玩家进入范围，激活红绿灯
+                    trafficLightManager.updateLightActivation(light, true);
+                    if (configManager.isDebugMode()) {
+                        plugin.getLogger().info("[Debug] 玩家 " + player.getName() + " 进入范围，激活红绿灯：" + light.getId());
+                    }
                 }
             }
         }

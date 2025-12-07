@@ -1,4 +1,4 @@
-package com.mineunion.trafficlight.config;
+package com.mineunion.trafficlight.manager; // 改为 manager 包
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
@@ -74,7 +74,7 @@ public class ConfigManager {
         trafficLightsConfig = YamlConfiguration.loadConfiguration(trafficLightsFile);
     }
 
-    // 保存红绿灯数据（修复 unchecked 警告）
+    // 保存红绿灯数据
     @SuppressWarnings("unchecked")
     public void saveTrafficLights(Map<String, TrafficLightEntity> lights) {
         if (!autoSave) return;
@@ -105,7 +105,7 @@ public class ConfigManager {
         }
     }
 
-    // 加载红绿灯数据（修复 unchecked 警告）
+    // 加载红绿灯数据
     @SuppressWarnings("unchecked")
     public Map<String, Object> loadTrafficLights() {
         Object data = trafficLightsConfig.get("traffic-lights");

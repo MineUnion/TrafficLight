@@ -2,8 +2,8 @@ package com.mineunion.trafficlight.util;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.manager.LanguageManager;
+import java.util.List; // 补充 List 导入
 
-// 工具类：简化消息发送（修复 getInstance() 错误）
 public class MessageUtil {
     private static TrafficLight plugin;
     private static LanguageManager languageManager;

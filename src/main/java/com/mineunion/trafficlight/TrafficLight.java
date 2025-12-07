@@ -1,7 +1,7 @@
 package com.mineunion.trafficlight;
 
 import com.mineunion.trafficlight.command.TrafficLightCommand;
-import com.mineunion.trafficlight.manager.ConfigManager;
+import com.mineunion.trafficlight.manager.ConfigManager; // 正确导入
 import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
 import com.mineunion.trafficlight.util.MessageUtil;
@@ -20,7 +20,7 @@ public class TrafficLight extends JavaPlugin {
         this.languageManager = new LanguageManager(this);
         this.trafficLightManager = new TrafficLightManager(this);
 
-        // 初始化消息工具类（修复 MessageUtil 报错）
+        // 初始化消息工具类
         MessageUtil.init(this);
 
         // 注册主命令

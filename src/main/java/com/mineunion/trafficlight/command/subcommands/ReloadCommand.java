@@ -2,12 +2,13 @@ package com.mineunion.trafficlight.command.subcommands;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.command.TrafficLightCommand;
-import com.mineunion.trafficlight.manager.ConfigManager;
+import com.mineunion.trafficlight.manager.ConfigManager; // 正确导入
 import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.command.CommandSender;
 
 public class ReloadCommand implements TrafficLightCommand.SubCommand {
+    // 类内容不变（之前已修复）
     private final TrafficLight plugin;
     private final LanguageManager languageManager;
 
