@@ -1,47 +1,40 @@
-# ==================== TrafficLight 核心配置 ====================
-# 插件版本：1.0.0
-# 配置说明：修改后需执行 /trafficlight reload 生效（无需重启服务器）
-
-# ==================== 基础配置 ====================
-# 插件前缀（将显示在所有系统消息前）
-# 支持颜色代码：&0-黑色 &1-深蓝色 &2-深绿色 &3-深青色 &4-深红色 &5-深紫色 &6-金色 &7-灰色
-# &8-深灰色 &9-蓝色 &a-绿色 &b-青色 &c-红色 &d-粉色 &e-黄色 &f-白色 &r-重置颜色
-message-prefix: "&a[TrafficLight] &7"
-error-prefix: "&c[TrafficLight] &7"
-
-# ==================== 功能配置 ====================
-# 玩家触发红绿灯的距离（单位：方块）
-# 范围建议：5-20（过大会影响服务器性能）
-proximity-radius: 10
-
-# 自动保存开关（启用后将实时保存红绿灯数据到配置文件）
-# 关闭后需手动执行 /trafficlight reload 保存数据
-auto-save: true
-
-# 自动保存间隔（单位：秒），仅 auto-save 为 true 时生效
-# 建议：30-300 秒（过短会频繁读写文件，影响性能）
-auto-save-interval: 60
-
-# 红绿灯默认状态持续时间（单位：秒）
-# 可通过 /trafficlight set <ID> <状态> <时间> 单独修改某个红绿灯
-default-duration:
-  red: 30    # 红灯默认持续时间
-  green: 30  # 绿灯默认持续时间
-  yellow: 5  # 黄灯默认持续时间
-
-# ==================== 性能优化配置 ====================
-# 距离检测任务执行间隔（单位：游戏刻，1秒=20刻）
-# 间隔越小检测越频繁，性能消耗越高，建议：20-100刻（1-5秒）
-proximity-check-interval: 20
-
-# 是否启用异步距离检测（减轻主线程压力，推荐启用）
-# 注意：启用后若涉及方块操作，需通过 Bukkit.getScheduler().runTask() 切换到主线程
-async-proximity-check: true
-
-# ==================== 调试配置 ====================
-# 调试模式开关（启用后将在控制台输出详细日志，用于排查问题）
+# TrafficLight 插件核心配置
+# 调试模式（关闭后不显示Debug日志）
 debug-mode: false
 
-# 调试日志等级（仅 debug-mode 为 true 时生效）
-# 可选值：INFO（普通信息）、WARNING（警告）、SEVERE（严重错误）、ALL（所有日志）
-debug-log-level: "INFO"
+# 距离触发配置
+proximity-trigger: true  # 是否开启"玩家靠近触发红绿灯"（false=常亮变色）
+proximity-radius: 10     # 触发半径（单位：格），玩家进入该范围激活红绿灯
+proximity-check-interval: 20  # 距离检测间隔（单位：ticks，20ticks=1秒）
+async-proximity-check: true  # 是否异步检测距离（减轻服务器卡顿）
+
+# 自动保存配置
+auto-save: true  # 是否开启自动保存红绿灯数据
+auto-save-interval: 60  # 自动保存间隔（单位：秒），默认60秒保存一次
+
+# 全局默认灯色时长（秒）
+default-duration:
+  red: 30    # 红灯默认时长
+  green: 25  # 绿灯默认时长
+  yellow: 5  # 黄灯默认时长
+
+# 多世界独立配置（可选，优先级高于全局配置）
+# 格式：世界名称 -> 专属配置
+per-world-config:
+  world_nether:  # 地狱世界
+    proximity-radius: 8
+    default-duration:
+      red: 20
+      green: 15
+      yellow: 3
+  world_the_end:  # 末地世界
+    proximity-radius: 15
+    default-duration:
+      red: 40
+      green: 30
+      yellow: 5
+
+# 命令配置
+command:
+  main-command: "trafficlight"  # 主命令（可简写为tl）
+  aliases: ["tl", "traffic"]    # 命令别名，支持 /tl /traffic 快速调用

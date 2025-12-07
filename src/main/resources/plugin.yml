@@ -1,43 +1,57 @@
 name: TrafficLight
-version: 1.0.0
 main: com.mineunion.trafficlight.TrafficLight
-api-version: 1.21
-author: MineUnion
-description: 轻量可定制的Minecraft红绿灯控制插件
+version: 1.0.1
+api-version: "1.21"
+authors: [MineUnion]
+description: 一款Minecraft红绿灯插件，支持多世界、距离触发、数据持久化
 website: https://github.com/MineUnion/TrafficLight
-
-# 指令配置
-commands:
-  trafficlight:
-    aliases: [tl]
-    description: 红绿灯核心指令
-    usage: /<command> [create/delete/set/list/reload] [参数...]
-    permission: mu.trafficlight.use
-    permission-message: 你没有权限执行此指令！
+prefix: TrafficLight
+load: POSTWORLD
 
 # 权限配置
 permissions:
   mu.trafficlight.*:
-    description: 所有红绿灯管理权限
-    default: op
+    description: 拥有插件所有权限
     children:
       mu.trafficlight.create: true
       mu.trafficlight.delete: true
       mu.trafficlight.set: true
+      mu.trafficlight.switch: true
+      mu.trafficlight.toggle: true
       mu.trafficlight.list: true
+      mu.trafficlight.info: true
       mu.trafficlight.reload: true
+      mu.trafficlight.help: true
   mu.trafficlight.create:
-    description: 创建红绿灯权限
+    description: 允许创建红绿灯
     default: op
   mu.trafficlight.delete:
-    description: 删除红绿灯权限
+    description: 允许删除红绿灯
     default: op
   mu.trafficlight.set:
-    description: 修改红绿灯配置权限
+    description: 允许设置灯色时长
+    default: op
+  mu.trafficlight.switch:
+    description: 允许手动切换灯色
+    default: op
+  mu.trafficlight.toggle:
+    description: 允许激活/禁用红绿灯
     default: op
   mu.trafficlight.list:
-    description: 查看红绿灯列表权限
-    default: op
+    description: 允许查看所有红绿灯
+    default: true  # 所有玩家可用
+  mu.trafficlight.info:
+    description: 允许查看红绿灯详情
+    default: true
   mu.trafficlight.reload:
-    description: 重载配置权限
+    description: 允许重载插件
     default: op
+  mu.trafficlight.help:
+    description: 允许查看命令帮助
+    default: true
+
+commands:
+  trafficlight:
+    description: TrafficLight 插件主命令
+    aliases: [tl, traffic]
+    usage: /<command> help - 查看命令帮助

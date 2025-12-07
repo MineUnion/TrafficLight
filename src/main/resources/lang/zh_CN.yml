@@ -1,36 +1,25 @@
-# 插件语言文件（中文）
-# 通用提示
-prefix: "§6[TrafficLight] §r"  # 消息前缀（金色括号）
+# 中文语言包（与messages.yml内容一致，用于多语言切换扩展）
+prefix: "§6[TrafficLight] §r"
 no-permission: "%prefix%§c你没有执行该命令的权限！"
 command-not-found: "%prefix%§c命令不存在！使用 /tl help 查看帮助"
 argument-error: "%prefix%§c参数错误！请检查命令格式"
 light-not-found: "%prefix%§c未找到ID为 §e%id% §c的红绿灯"
-
-# 红绿灯操作提示
 create-success: "%prefix%§a成功创建红绿灯：§e%name% §a（ID：%id%）"
 create-failed: "%prefix%§c创建失败！ID §e%id% §c已存在"
 delete-success: "%prefix%§a成功删除红绿灯：§e%id%"
 delete-failed: "%prefix%§c删除失败！未找到该红绿灯"
-
-# 状态/时长设置提示
 set-duration-success: "%prefix%§a成功设置 §e%id% §a的§e%state% §a时长为 §e%seconds% §a秒"
 set-duration-failed: "%prefix%§c设置失败！时长必须大于0"
 switch-state-success: "%prefix%§a成功将 §e%id% §a切换为 §e%state% §a状态"
 toggle-activate: "%prefix%§a成功激活红绿灯：§e%id%"
 toggle-deactivate: "%prefix%§a成功禁用红绿灯：§e%id%"
-
-# 重载/保存提示
 reload-start: "%prefix%§e正在重载插件配置和数据..."
 reload-success: "%prefix%§a插件重载成功！"
 reload-failed: "%prefix%§c插件重载失败"
 save-success: "%prefix%§a红绿灯数据保存成功"
-
-# 列表/详情提示
 list-title: "%prefix%§e当前所有红绿灯（共%count%个）："
 list-item: "§7- §e%id% §r| §a%name% §r| 世界：%world% | 状态：%state%"
 info-title: "%prefix%§e红绿灯详情（ID：%id%）："
-
-# 帮助提示
 help-title: "%prefix%§eTrafficLight 插件命令帮助："
 help-item:
   - "§7/tl create <ID> <名称> §r- §a创建红绿灯（当前位置）"
