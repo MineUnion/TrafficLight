@@ -336,4 +336,9 @@ public class ConfigManager {
     public FileConfiguration getConfig() {
         return config;
     }
+    
+    // 保存配置文件
+    public void saveConfig() throws IOException {
+        config.save(configFile);
+    }
 }

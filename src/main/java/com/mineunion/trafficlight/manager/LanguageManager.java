@@ -17,7 +17,7 @@ public class LanguageManager {
 
     public LanguageManager(TrafficLight plugin) {
         this.plugin = plugin;
-        this.currentLanguage = plugin.getConfigManager().loadConfig().getString("language", "zh_CN");
+        this.currentLanguage = plugin.getConfigManager().getConfig().getString("language", "zh_CN");
         loadAllLanguageFiles();
     }
 
@@ -119,7 +119,8 @@ public class LanguageManager {
         // 保存语言设置到配置文件
         plugin.getConfigManager().getConfig().set("language", languageCode);
         try {
-            plugin.getConfigManager().getConfig().save(plugin.getConfigManager().getConfigFile());
+            // 直接使用ConfigManager中的save方法
+            plugin.getConfigManager().saveConfig();
         } catch (IOException e) {
             plugin.getLogger().severe("保存语言设置失败：" + e.getMessage());
         }
