@@ -1,4 +1,4 @@
-package com.mineunion.trafficlight.manager;
+package com.mineunion.trafficlight.config;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.entity.TrafficLightEntity;
@@ -74,7 +74,8 @@ public class ConfigManager {
         trafficLightsConfig = YamlConfiguration.loadConfiguration(trafficLightsFile);
     }
 
-    // 保存红绿灯数据
+    // 保存红绿灯数据（修复 unchecked 警告）
+    @SuppressWarnings("unchecked")
     public void saveTrafficLights(Map<String, TrafficLightEntity> lights) {
         if (!autoSave) return;
 
@@ -104,7 +105,8 @@ public class ConfigManager {
         }
     }
 
-    // 加载红绿灯数据
+    // 加载红绿灯数据（修复 unchecked 警告）
+    @SuppressWarnings("unchecked")
     public Map<String, Object> loadTrafficLights() {
         Object data = trafficLightsConfig.get("traffic-lights");
         return data instanceof Map ? (Map<String, Object>) data : new HashMap<>();
@@ -134,7 +136,7 @@ public class ConfigManager {
         }
     }
 
-    // 多世界配置支持（可选使用）
+    // 多世界配置支持
     public int getProximityRadius(String worldName) {
         if (config.contains("per-world-config." + worldName + ".proximity-radius")) {
             return config.getInt("per-world-config." + worldName + ".proximity-radius");

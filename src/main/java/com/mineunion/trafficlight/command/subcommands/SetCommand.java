@@ -7,6 +7,7 @@ import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.command.CommandSender;
 
+// 类名=文件名：SetCommand
 public class SetCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
     private final LanguageManager languageManager;

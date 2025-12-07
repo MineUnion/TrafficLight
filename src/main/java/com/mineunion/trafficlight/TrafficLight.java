@@ -4,6 +4,7 @@ import com.mineunion.trafficlight.command.TrafficLightCommand;
 import com.mineunion.trafficlight.manager.ConfigManager;
 import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
+import com.mineunion.trafficlight.util.MessageUtil;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class TrafficLight extends JavaPlugin {
@@ -19,7 +20,10 @@ public class TrafficLight extends JavaPlugin {
         this.languageManager = new LanguageManager(this);
         this.trafficLightManager = new TrafficLightManager(this);
 
-        // 注册主命令（修复：直接注册 TrafficLightCommand 实例）
+        // 初始化消息工具类（修复 MessageUtil 报错）
+        MessageUtil.init(this);
+
+        // 注册主命令
         this.getCommand("trafficlight").setExecutor(new TrafficLightCommand(this));
         this.getCommand("tl").setExecutor(new TrafficLightCommand(this));
         this.getCommand("traffic").setExecutor(new TrafficLightCommand(this));

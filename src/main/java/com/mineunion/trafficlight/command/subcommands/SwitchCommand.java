@@ -7,12 +7,13 @@ import com.mineunion.trafficlight.manager.LanguageManager;
 import com.mineunion.trafficlight.manager.TrafficLightManager;
 import org.bukkit.command.CommandSender;
 
-public class SetCommand implements TrafficLightCommand.SubCommand {
+// 类名=文件名：SwitchCommand
+public class SwitchCommand implements TrafficLightCommand.SubCommand {
     private final TrafficLight plugin;
     private final LanguageManager languageManager;
     private final TrafficLightManager trafficLightManager;
 
-    public SetCommand(TrafficLight plugin) {
+    public SwitchCommand(TrafficLight plugin) {
         this.plugin = plugin;
         this.languageManager = plugin.getLanguageManager();
         this.trafficLightManager = plugin.getTrafficLightManager();
@@ -20,27 +21,14 @@ public class SetCommand implements TrafficLightCommand.SubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        // 参数校验（需传入 ID、状态、时长）
-        if (args.length < 3) {
-            sender.sendMessage(languageManager.getMessage("argument-error") + "：/tl set <ID> <state> <秒数>（state：red/green/yellow）");
+        // 参数校验（需传入 ID、目标状态）
+        if (args.length < 2) {
+            sender.sendMessage(languageManager.getMessage("argument-error") + "：/tl switch <ID> <state>（state：red/green/yellow）");
             return true;
         }
 
         String lightId = args[0];
         String stateStr = args[1].toLowerCase();
-        int seconds;
-
-        // 解析时长（必须为正整数）
-        try {
-            seconds = Integer.parseInt(args[2]);
-            if (seconds <= 0) {
-                sender.sendMessage(languageManager.getMessage("set-duration-failed"));
-                return true;
-            }
-        } catch (NumberFormatException e) {
-            sender.sendMessage(languageManager.getMessage("argument-error") + "：时长必须是整数");
-            return true;
-        }
 
         // 解析灯色状态
         TrafficLightEntity.LightState state;
@@ -60,24 +48,21 @@ public class SetCommand implements TrafficLightCommand.SubCommand {
             return true;
         }
 
-        // 调用管理器设置时长
-        boolean setSuccess = trafficLightManager.setLightDuration(lightId, state, seconds);
-        if (setSuccess) {
+        // 调用管理器切换状态
+        boolean switchSuccess = trafficLightManager.switchLightState(lightId, state);
+        if (switchSuccess) {
             String stateName = switch (state) {
                 case RED -> "红灯";
                 case GREEN -> "绿灯";
                 case YELLOW -> "黄灯";
             };
             sender.sendMessage(
-                languageManager.getMessage("set-duration-success")
+                languageManager.getMessage("switch-state-success")
                     .replace("%id%", lightId)
                     .replace("%state%", stateName)
-                    .replace("%seconds%", String.valueOf(seconds))
             );
-            // 设置后保存数据
-            trafficLightManager.saveAllTrafficLights();
         } else {
-            sender.sendMessage(languageManager.getMessage("set-duration-failed"));
+            sender.sendMessage(languageManager.getMessage("argument-error") + "：切换灯色失败");
         }
 
         return true;

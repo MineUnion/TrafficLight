@@ -2,18 +2,31 @@ package com.mineunion.trafficlight.util;
 
 import com.mineunion.trafficlight.TrafficLight;
 import com.mineunion.trafficlight.manager.LanguageManager;
-import org.bukkit.command.CommandSender;
 
+// 工具类：简化消息发送（修复 getInstance() 错误）
 public class MessageUtil {
-    private static final LanguageManager langManager = TrafficLight.getInstance().getLanguageManager();
+    private static TrafficLight plugin;
+    private static LanguageManager languageManager;
 
-    // 发送普通消息（从语言文件获取）
-    public static void sendMessage(CommandSender sender, String key, Object... placeholders) {
-        sender.sendMessage(langManager.getMessage(key, placeholders));
+    // 初始化工具类（在主类 onEnable 中调用）
+    public static void init(TrafficLight trafficLight) {
+        plugin = trafficLight;
+        languageManager = plugin.getLanguageManager();
     }
 
-    // 发送错误消息（从语言文件获取）
-    public static void sendError(CommandSender sender, String key, Object... placeholders) {
-        sender.sendMessage(langManager.getMessage("error-" + key, placeholders));
+    // 获取单个消息
+    public static String getMessage(String key) {
+        if (languageManager == null) {
+            return "§c语言管理器未初始化";
+        }
+        return languageManager.getMessage(key);
+    }
+
+    // 获取列表消息
+    public static List<String> getMessageList(String key) {
+        if (languageManager == null) {
+            return List.of("§c语言管理器未初始化");
+        }
+        return languageManager.getMessageList(key);
     }
 }
