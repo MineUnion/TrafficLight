@@ -36,6 +36,7 @@ public class ProximityCheckTask extends BukkitRunnable {
         }
 
         // 遍历所有玩家
+        boolean activationChanged = false;
         for (Player player : Bukkit.getOnlinePlayers()) {
             // 遍历所有红绿灯，检查玩家是否在触发范围内
             for (TrafficLightEntity light : allLights) {
@@ -47,11 +48,16 @@ public class ProximityCheckTask extends BukkitRunnable {
                 if (distance <= proximityRadius) {
                     // 玩家进入范围，激活红绿灯
                     trafficLightManager.updateLightActivation(light, true);
+                    activationChanged = true;
                     if (configManager.isDebugMode()) {
                         plugin.getLogger().info("[Debug] 玩家 " + player.getName() + " 进入范围，激活红绿灯：" + light.getId());
                     }
                 }
             }
+        }
+        // 如果有激活状态变更，保存数据
+        if (activationChanged) {
+            trafficLightManager.saveAllTrafficLights();
         }
     }
 }

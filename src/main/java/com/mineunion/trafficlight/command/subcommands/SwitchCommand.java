@@ -61,6 +61,8 @@ public class SwitchCommand implements TrafficLightCommand.SubCommand {
                     .replace("%id%", lightId)
                     .replace("%state%", stateName)
             );
+            // 切换状态后保存数据
+            trafficLightManager.saveAllTrafficLights();
         } else {
             sender.sendMessage(languageManager.getMessage("argument-error") + "：切换灯色失败");
         }

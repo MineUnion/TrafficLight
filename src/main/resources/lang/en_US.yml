@@ -1,47 +1,33 @@
-# TrafficLight English Language File
-
-# Message prefix
+# English language pack
 prefix: "§6[TrafficLight] §r"
-
-# Common messages
-no-permission: "§cYou don't have permission to execute this command!"
-player-only: "§cThis command can only be executed by players!"
-invalid-command: "§cInvalid command! Use /tl help for help."
-light-not-found: "§cTraffic light not found!"
-light-already-exists: "§cTraffic light already exists!"
-light-created: "§aTraffic light created successfully: §e{name}"
-light-deleted: "§aTraffic light deleted successfully: §e{id}"
-light-toggled: "§aTraffic light toggled successfully: §e{name} §a({status})"
-light-switched: "§aTraffic light switched successfully: §e{name} §a→ §e{state}"
-light-set: "§aTraffic light duration set successfully: §e{name} §a{state} §e{duration}s"
-reloaded: "§aTrafficLight plugin reloaded successfully!"
-saved: "§aTraffic light data saved successfully!"
-
-# Help messages
-help.header: "§aTrafficLight Help"
-help-list:
-  - "§e/tl help §7- Show this help message"
-  - "§e/tl create <id> <name> §7- Create a new traffic light"
-  - "§e/tl delete <id> §7- Delete a traffic light"
-  - "§e/tl list §7- List all traffic lights"
-  - "§e/tl info <id> §7- Show traffic light info"
-  - "§e/tl set <id> <red/green/yellow> <duration> §7- Set light duration"
-  - "§e/tl switch <id> <red/green/yellow> §7- Switch light state"
-  - "§e/tl toggle <id> §7- Toggle traffic light activation"
-  - "§e/tl reload §7- Reload plugin config"
-  - "§e/tl language <zh_CN/en_US> §7- Switch plugin language"
-  - "§e/tl update §7- Check for plugin updates"
-
-# Info messages
-info.header: "§aTraffic Light Info"
-info.format: "§eID: §a{id}\n§eName: §a{name}\n§eLocation: §a{world} ({x}, {y}, {z})\n§eState: §a{state}\n§eActivated: §a{activated}\n§eDurations: §aRed {red}s / Green {green}s / Yellow {yellow}s"
-
-# Update messages
-update.available: "§aA new version of TrafficLight is available: §e{new-version} §a(Current: §e{current-version}§a)"
-update.not-available: "§aYou are using the latest version of TrafficLight."
-update.checking: "§aChecking for updates..."
-update.failed: "§cFailed to check for updates: {error}"
-
-# Language messages
-language.changed: "§aLanguage changed successfully to: §e{language}"
-language.invalid: "§cInvalid language! Supported languages: zh_CN, en_US"
+no-permission: "%prefix%§cYou don't have permission to execute this command!"
+command-not-found: "%prefix%§cCommand not found! Use /tl help for help"
+argument-error: "%prefix%§cArgument error! Please check the command format"
+light-not-found: "%prefix%§cTraffic light with ID §e%id% §cnot found"
+create-success: "%prefix%§aSuccessfully created traffic light: §e%name% §a(ID: %id%)"
+create-failed: "%prefix%§cCreation failed! ID §e%id% §calready exists"
+delete-success: "%prefix%§aSuccessfully deleted traffic light: §e%id%"
+delete-failed: "%prefix%§cDeletion failed! Traffic light not found"
+set-duration-success: "%prefix%§aSuccessfully set §e%id% §a's §e%state% §aduration to §e%seconds% §aseconds"
+set-duration-failed: "%prefix%§cSetting failed! Duration must be greater than 0"
+switch-state-success: "%prefix%§aSuccessfully switched §e%id% §ato §e%state% §astate"
+toggle-activate: "%prefix%§aSuccessfully activated traffic light: §e%id%"
+toggle-deactivate: "%prefix%§aSuccessfully deactivated traffic light: §e%id%"
+reload-start: "%prefix%§eReloading plugin configuration and data..."
+reload-success: "%prefix%§aPlugin reloaded successfully!"
+reload-failed: "%prefix%§cPlugin reload failed"
+save-success: "%prefix%§aTraffic light data saved successfully"
+list-title: "%prefix%§eAll traffic lights (total %count%):"
+list-item: "§7- §e%id% §r| §a%name% §r| World: %world% | State: %state%"
+info-title: "%prefix%§eTraffic light details (ID: %id%):"
+help-title: "%prefix%§eTrafficLight Plugin Command Help:"
+help-item:
+  - "§7/tl create <ID> <name> §r- §aCreate a traffic light (current location)"
+  - "§7/tl delete <ID> §r- §aDelete specified traffic light"
+  - "§7/tl list §r- §aView all traffic lights"
+  - "§7/tl info <ID> §r- §aView details of a traffic light"
+  - "§7/tl set <ID> <state> <seconds> §r- §aSet light duration (state: red/green/yellow)"
+  - "§7/tl switch <ID> <state> §r- §aManually switch light state"
+  - "§7/tl toggle <ID> [activate/deactivate] §r- §aActivate/deactivate traffic light"
+  - "§7/tl reload §r- §aReload plugin configuration and data"
+  - "§7/tl help §r- §aView help"

@@ -21,6 +21,7 @@ public class TrafficLight extends JavaPlugin {
         this.configManager = new ConfigManager(this);
         this.languageManager = new LanguageManager(this);
         this.trafficLightManager = new TrafficLightManager(this);
+        this.updateManager = new UpdateManager(this);
 
         // 初始化消息工具类
         MessageUtil.init(this);
@@ -29,6 +30,9 @@ public class TrafficLight extends JavaPlugin {
         this.getCommand("trafficlight").setExecutor(new TrafficLightCommand(this));
         this.getCommand("tl").setExecutor(new TrafficLightCommand(this));
         this.getCommand("traffic").setExecutor(new TrafficLightCommand(this));
+
+        // 检查更新
+        this.updateManager.checkForUpdates();
 
         // 插件启用提示
         getLogger().info("TrafficLight 插件已成功启用！");

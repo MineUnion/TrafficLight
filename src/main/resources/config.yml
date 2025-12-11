@@ -45,3 +45,6 @@ per-world-config:
 command:
   main-command: "trafficlight"  # 主命令（可简写为tl）
   aliases: ["tl", "traffic"]    # 命令别名，支持 /tl /traffic 快速调用
+
+# 更新检查配置
+check-updates-on-join: true  # 是否在玩家加入时通知OP有可用更新

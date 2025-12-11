@@ -48,6 +48,8 @@ public class CreateCommand implements TrafficLightCommand.SubCommand {
                     .replace("%id%", lightId)
                     .replace("%name%", lightName)
             );
+            // 创建后保存数据
+            trafficLightManager.saveAllTrafficLights();
         } else {
             sender.sendMessage(
                 languageManager.getMessage("create-failed")

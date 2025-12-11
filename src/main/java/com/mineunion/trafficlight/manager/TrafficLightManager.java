@@ -228,6 +228,10 @@ public class TrafficLightManager {
     public void updateLightActivation(TrafficLightEntity tle, boolean activated) {
         if (tle != null) {
             tle.setActivated(activated);
+            if (activated) {
+                // 激活时启动状态更新任务
+                new LightUpdateTask(plugin, tle).runTaskLater(plugin, tle.getDuration(tle.getState()) * 20L);
+            }
             if (plugin.getConfigManager().isDebugMode()) {
                 plugin.getLogger().info("[Debug] 更新红绿灯激活状态：ID=" + tle.getId() + ", 激活=" + activated);
             }

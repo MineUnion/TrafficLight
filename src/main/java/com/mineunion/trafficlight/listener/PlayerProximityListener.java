@@ -43,6 +43,8 @@ public class PlayerProximityListener implements Listener {
                 }
             }
         }
+        // 保存激活状态变更
+        trafficLightManager.saveAllTrafficLights();
     }
 
     // 玩家传送时，禁用原位置附近的红绿灯
@@ -63,5 +65,7 @@ public class PlayerProximityListener implements Listener {
                 }
             }
         }
+        // 保存激活状态变更
+        trafficLightManager.saveAllTrafficLights();
     }
 }
