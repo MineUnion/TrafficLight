@@ -21,7 +21,7 @@ public class TrafficLightEntity {
         this.name = name;
         this.location = location;
         this.state = LightState.RED; // 默认红灯
-        this.activated = false;
+        this.activated = true; // 默认激活状态
         this.redDuration = 30;
         this.greenDuration = 30;
         this.yellowDuration = 5;

@@ -40,8 +40,19 @@ public class CreateCommand implements TrafficLightCommand.SubCommand {
         }
         String lightName = nameBuilder.toString().trim();
 
+        // 获取玩家准星指向的方块位置
+        org.bukkit.util.RayTraceResult rayTraceResult = player.rayTraceBlocks(50); // 最大追踪距离50格
+        org.bukkit.Location targetLocation;
+        if (rayTraceResult != null && rayTraceResult.getHitBlock() != null) {
+            // 如果命中方块，使用方块位置
+            targetLocation = rayTraceResult.getHitBlock().getLocation();
+        } else {
+            // 如果没有命中方块，使用玩家当前位置作为备选
+            targetLocation = player.getLocation();
+        }
+        
         // 调用管理器创建红绿灯
-        boolean createSuccess = trafficLightManager.createTrafficLight(lightId, lightName, player.getLocation());
+        boolean createSuccess = trafficLightManager.createTrafficLight(lightId, lightName, targetLocation);
         if (createSuccess) {
             sender.sendMessage(
                 languageManager.getMessage("create-success")

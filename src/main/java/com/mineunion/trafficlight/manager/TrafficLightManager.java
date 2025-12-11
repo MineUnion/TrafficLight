@@ -148,11 +148,37 @@ public class TrafficLightManager {
         }
     }
 
-    // 核心业务方法：创建红绿灯
+    // 查找指定位置的红绿灯
+    private String findLightIdByLocation(Location location) {
+        for (Map.Entry<String, TrafficLightEntity> entry : lights.entrySet()) {
+            TrafficLightEntity light = entry.getValue();
+            Location lightLocation = light.getLocation();
+            if (lightLocation.getWorld().getName().equals(location.getWorld().getName()) &&
+                lightLocation.getBlockX() == location.getBlockX() &&
+                lightLocation.getBlockY() == location.getBlockY() &&
+                lightLocation.getBlockZ() == location.getBlockZ()) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+    
+    // 核心业务方法：创建红绿灯（支持强制替换）
     public boolean createTrafficLight(String id, String name, Location location) {
+        // 检查是否已存在相同ID的红绿灯
         if (lights.containsKey(id)) {
             return false;
         }
+        
+        // 强制替换：如果目标位置已有红绿灯，先删除
+        String existingId = findLightIdByLocation(location);
+        if (existingId != null) {
+            deleteTrafficLight(existingId);
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("[Debug] 替换位置上的原有红绿灯：ID=" + existingId + ", 新ID=" + id);
+            }
+        }
+        
         TrafficLightEntity light = new TrafficLightEntity(id, name, location);
         
         // 应用当前世界的默认时长
