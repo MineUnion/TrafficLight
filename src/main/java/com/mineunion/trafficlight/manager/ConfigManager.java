@@ -182,9 +182,10 @@ public class ConfigManager {
                 }
                 
                 trafficLightsConfig.set(path + ".name", light.getName());
-                trafficLightsConfig.set(path + ".x", light.getLocation().getX());
-                trafficLightsConfig.set(path + ".y", light.getLocation().getY());
-                trafficLightsConfig.set(path + ".z", light.getLocation().getZ());
+                // 保存整数坐标，去除小数点
+                trafficLightsConfig.set(path + ".x", light.getLocation().getBlockX());
+                trafficLightsConfig.set(path + ".y", light.getLocation().getBlockY());
+                trafficLightsConfig.set(path + ".z", light.getLocation().getBlockZ());
                 trafficLightsConfig.set(path + ".world", light.getLocation().getWorld().getName());
                 trafficLightsConfig.set(path + ".state", light.getState().name());
                 trafficLightsConfig.set(path + ".activated", light.isActivated());

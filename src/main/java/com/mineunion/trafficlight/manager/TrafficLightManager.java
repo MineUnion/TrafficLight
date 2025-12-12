@@ -170,8 +170,11 @@ public class TrafficLightManager {
             return false;
         }
         
+        // 转换为方块坐标（去除小数点）
+        Location blockLocation = location.toBlockLocation();
+        
         // 强制替换：如果目标位置已有红绿灯，先删除
-        String existingId = findLightIdByLocation(location);
+        String existingId = findLightIdByLocation(blockLocation);
         if (existingId != null) {
             deleteTrafficLight(existingId);
             if (plugin.getConfigManager().isDebugMode()) {
@@ -179,10 +182,10 @@ public class TrafficLightManager {
             }
         }
         
-        TrafficLightEntity light = new TrafficLightEntity(id, name, location);
+        TrafficLightEntity light = new TrafficLightEntity(id, name, blockLocation);
         
         // 应用当前世界的默认时长
-        String worldName = location.getWorld().getName();
+        String worldName = blockLocation.getWorld().getName();
         ConfigManager configManager = plugin.getConfigManager();
         light.setDuration(TrafficLightEntity.LightState.RED, configManager.getDefaultDuration(worldName, TrafficLightEntity.LightState.RED));
         light.setDuration(TrafficLightEntity.LightState.GREEN, configManager.getDefaultDuration(worldName, TrafficLightEntity.LightState.GREEN));
@@ -192,7 +195,7 @@ public class TrafficLightManager {
         new LightUpdateTask(plugin, light).runTaskLater(plugin, light.getDuration(light.getState()) * 20L);
         
         if (plugin.getConfigManager().isDebugMode()) {
-            plugin.getLogger().info("[Debug] 创建红绿灯：ID=" + id + ", 位置=" + location);
+            plugin.getLogger().info("[Debug] 创建红绿灯：ID=" + id + ", 位置=" + blockLocation);
         }
         return true;
     }
